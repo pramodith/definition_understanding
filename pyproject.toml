@@ -12,13 +12,12 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "nltk",
-    "openai",
-    "transformers",
-    "torch",
+    "litellm==1.67.1",
     "jupyter",
     "pytest",
     "tqdm",
-    "hf_transfer"
+    "hf_transfer",
+    "dotenv>=0.9.9",
 ]
 
 [project.optional-dependencies]
