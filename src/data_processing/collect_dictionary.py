@@ -63,7 +63,7 @@ def get_word_list(file_path: Optional[str] = None, num_words: int = 1000) -> Lis
         letter2 = random.choice('abcdefghijklmnopqrstuvwxyz')
 
         # Fetch words for each letter combination
-        response = requests.get(f"https://api.datamuse.com/words?sp={letter1}*{letter2}")
+        response = requests.get(f"https://api.datamuse.com/words?sp={letter1}*{letter2}&max=10")
         if response.status_code == 200:
             data = response.json()
             word_list.extend([item['word'] for item in data if 'word' in item])
