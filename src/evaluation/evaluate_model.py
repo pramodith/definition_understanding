@@ -15,7 +15,7 @@ import pandas as pd
 from evaluation.metrics import (
     analyze_results_by_category,
     calculate_metrics,
-    extract_predicted_word,
+    calculate_topk_metrics,
     save_evaluation_results,
 )
 from models.model_factory import get_model
@@ -145,36 +145,37 @@ async def evaluate_model_async(
 
     # Process results
     results = []
-    for i, response in enumerate(responses):
-        # Extract predicted word
-        prediction = extract_predicted_word(response)
-
-        # Store result
+    for i, prediction_list in enumerate(responses):
+        # prediction_list is already a list of top-k predictions
         result = {
             "word": words[i],
             "definition": definitions[i],
             "part_of_speech": parts_of_speech[i],
             "synonyms": all_synonyms[i],
-            "prediction": prediction,
-            "full_response": response,
+            "prediction": prediction_list,
+            "full_response": prediction_list,  # Optionally store the full list
         }
-
         results.append(result)
 
         if verbose:
             print(f"Word: {words[i]}")
             print(f"Definition: {definitions[i]}")
-            print(f"Prediction: {prediction}")
-            print(
-                f"Correct: {prediction.lower() == words[i].lower() or prediction.lower() in [s.lower() for s in all_synonyms[i]]}"
+            print(f"Predictions: {prediction_list}")
+            # Show if any top-k prediction matches
+            correct = any(
+                p.lower() == words[i].lower() or p.lower() in [s.lower() for s in all_synonyms[i]]
+                for p in prediction_list
             )
+            print(f"Correct (any top-k): {correct}")
             print("-" * 50)
 
     # Calculate metrics
-    metrics = calculate_metrics(results, include_synonyms, fuzzy_match)
+    metrics = calculate_metrics(results)
+    topk_metrics = calculate_topk_metrics(results, topk_list=[1, 3, 5])
+    metrics.update(topk_metrics)
 
     # Analyze results by category
-    category_metrics = analyze_results_by_category(results, include_synonyms)
+    category_metrics = analyze_results_by_category(results)
 
     # Save results
     os.makedirs(output_dir, exist_ok=True)
@@ -186,6 +187,9 @@ async def evaluate_model_async(
     print(f"Exact match accuracy: {metrics['exact_accuracy']:.4f}")
     print(f"Accuracy with synonyms: {metrics['synonym_accuracy']:.4f}")
     print(f"Number of samples: {metrics['num_samples']}")
+    for k in [1, 3, 5]:
+        print(f"accuracy@{k}: {metrics.get(f'accuracy@{k}', 0):.4f}")
+        print(f"fuzzy_accuracy@{k}: {metrics.get(f'fuzzy_accuracy@{k}', 0):.4f}")
 
     return metrics
 

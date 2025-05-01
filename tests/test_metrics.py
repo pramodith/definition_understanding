@@ -32,21 +32,29 @@ def test_normalize_word():
 def test_is_correct_answer():
     """Test function for checking if an answer is correct."""
     # Test exact match
-    assert is_correct_answer("apple", "apple") is True
-    assert is_correct_answer("Apple", "apple") is True
-    assert is_correct_answer("apple", "banana") is False
+    assert is_correct_answer("apple", "apple")["exact"] is True
+    assert is_correct_answer("Apple", "apple")["exact"] is True
+    assert is_correct_answer("apple", "banana")["exact"] is False
 
     # Test with synonyms
-    assert is_correct_answer("fruit", "apple", synonyms=["fruit", "produce"]) is True
-    assert is_correct_answer("produce", "apple", synonyms=["fruit", "produce"]) is True
+    assert is_correct_answer("fruit", "apple", synonyms=["fruit", "produce"])["synonym"] is True
+    assert is_correct_answer("produce", "apple", synonyms=["fruit", "produce"])["synonym"] is True
     assert (
-        is_correct_answer("vegetable", "apple", synonyms=["fruit", "produce"]) is False
+        is_correct_answer("vegetable", "apple", synonyms=["fruit", "produce"])["synonym"] is False
     )
 
     # Test fuzzy matching
-    assert is_correct_answer("app", "apple", fuzzy_match=True) is True
-    assert is_correct_answer("applesauce", "apple", fuzzy_match=True) is True
-    assert is_correct_answer("banana", "apple", fuzzy_match=True) is False
+    assert is_correct_answer("app", "apple", fuzzy_match=True)["fuzzy"] is True
+    assert is_correct_answer("applesauce", "apple", fuzzy_match=True)["fuzzy"] is True
+    assert is_correct_answer("banana", "apple", fuzzy_match=True)["fuzzy"] is False
+
+    # Test with list of predictions (top-k)
+    assert is_correct_answer(["apple", "banana"], "apple")["exact"] is True
+    assert is_correct_answer(["banana", "pear"], "apple")["exact"] is False
+    assert is_correct_answer(["fruit", "produce"], "apple", synonyms=["fruit", "produce"])["synonym"] is True
+    assert is_correct_answer(["vegetable", "grain"], "apple", synonyms=["fruit", "produce"])["synonym"] is False
+    assert is_correct_answer(["app", "applesauce"], "apple", fuzzy_match=True)["fuzzy"] is True
+    assert is_correct_answer(["banana", "pear"], "apple", fuzzy_match=True)["fuzzy"] is False
 
 
 def test_extract_predicted_word():
@@ -68,49 +76,69 @@ def test_extract_predicted_word():
 
 def test_calculate_metrics():
     """Test function for calculating evaluation metrics."""
-    # Create test results
+    # Create test results (predictions as lists for top-k)
     results = [
         {
             "word": "apple",
             "definition": "A fruit",
-            "prediction": "apple",
+            "prediction": ["apple"],
             "synonyms": ["fruit"],
         },
         {
             "word": "banana",
             "definition": "A yellow fruit",
-            "prediction": "banana",
+            "prediction": ["banana"],
             "synonyms": ["fruit"],
         },
         {
             "word": "cat",
             "definition": "A feline animal",
-            "prediction": "dog",
+            "prediction": ["dog"],
             "synonyms": ["feline"],
         },
         {
             "word": "dog",
             "definition": "A canine animal",
-            "prediction": "canine",
+            "prediction": ["canine"],
             "synonyms": ["canine"],
         },
     ]
 
-    # Test without synonyms
-    metrics = calculate_metrics(results, include_synonyms=False)
+    metrics = calculate_metrics(results)
     assert metrics["exact_accuracy"] == 0.5  # 2 out of 4 correct
-    assert metrics["synonym_accuracy"] == 0.5
+    assert metrics["synonym_accuracy"] == 0.75
+    assert metrics["fuzzy_accuracy"] == 0.5
     assert metrics["num_samples"] == 4
 
-    # Test with synonyms
-    metrics = calculate_metrics(results, include_synonyms=True)
-    assert metrics["exact_accuracy"] == 0.5  # Still 2 out of 4 exact matches
-    assert metrics["synonym_accuracy"] == 0.75  # 3 out of 4 with synonyms (dog->canine)
-
-    # Test with fuzzy matching
-    metrics = calculate_metrics(results, include_synonyms=False, fuzzy_match=True)
-    assert metrics["exact_accuracy"] == 0.5  # Still 2 out of 4 exact matches
-    assert metrics["synonym_accuracy"] == 0.5  # No fuzzy matches in this case
+    results_topk = [
+        {
+            "word": "apple",
+            "definition": "A fruit",
+            "prediction": ["pear", "apple", "banana"],
+            "synonyms": ["fruit"],
+        },
+        {
+            "word": "banana",
+            "definition": "A yellow fruit",
+            "prediction": ["banana", "apple", "fruit"],
+            "synonyms": ["fruit"],
+        },
+        {
+            "word": "cat",
+            "definition": "A feline animal",
+            "prediction": ["dog", "wolf", "fox"],
+            "synonyms": ["feline"],
+        },
+        {
+            "word": "dog",
+            "definition": "A canine animal",
+            "prediction": ["canine", "wolf", "fox"],
+            "synonyms": ["canine"],
+        },
+    ]
+    metrics_topk = calculate_metrics(results_topk)
+    assert metrics_topk["exact_accuracy"] == 0.25  # 3 out of 4 have the correct word in top-k
+    assert metrics_topk["synonym_accuracy"] == 0.50  # 4 out of 4 have correct or synonym in top-k
 
 
 def test_analyze_results_by_category():
@@ -120,35 +148,35 @@ def test_analyze_results_by_category():
         {
             "word": "apple",
             "definition": "A fruit",
-            "prediction": "apple",
+            "prediction": ["apple"],
             "part_of_speech": "noun",
             "synonyms": [],
         },
         {
             "word": "banana",
             "definition": "A yellow fruit",
-            "prediction": "banana",
+            "prediction": ["banana"],
             "part_of_speech": "noun",
             "synonyms": [],
         },
         {
             "word": "run",
             "definition": "To move quickly",
-            "prediction": "sprint",
+            "prediction": ["sprint"],
             "part_of_speech": "verb",
             "synonyms": ["sprint"],
         },
         {
             "word": "happy",
             "definition": "Feeling joy",
-            "prediction": "sad",
+            "prediction": ["sad"],
             "part_of_speech": "adjective",
             "synonyms": [],
         },
     ]
 
     # Test analysis by part of speech
-    category_metrics = analyze_results_by_category(results, include_synonyms=True)
+    category_metrics = analyze_results_by_category(results)
 
     # Check that categories were created correctly
     assert "by_part_of_speech" in category_metrics

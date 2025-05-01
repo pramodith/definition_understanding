@@ -21,6 +21,7 @@ class LLMModel:
         api_key: str | None = None,
         temperature: float = 0.0,
         max_tokens: int = 50,
+        top_logprobs: int = 5,
         **kwargs,
     ):
         """
@@ -31,6 +32,7 @@ class LLMModel:
             api_key: API key for the model provider (if needed)
             temperature: Sampling temperature (0.0 = deterministic)
             max_tokens: Maximum number of tokens to generate
+            top_logprobs: Number of top log-probabilities to return
             **kwargs: Additional model-specific parameters
         """
         self.model_name = model_name
@@ -49,99 +51,122 @@ class LLMModel:
         # Store generation parameters
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.top_logprobs = top_logprobs
         self.kwargs = kwargs
 
-    def generate(self, prompt_messages: list[dict[str, str]]) -> str:
+    def _extract_topk_tokens_from_logprobs(self, choice) -> list[str]:
         """
-        Generate a response using LiteLLM.
+        Helper to extract top-k tokens from a LiteLLM choice logprobs dict.
+        Returns a list of top-k tokens (best guess first) or an empty list if not available.
+        """
+        topk_tokens = []
+        if hasattr(choice, "logprobs") and choice.logprobs and "top_logprobs" in choice.logprobs:
+            top_logprobs = choice.logprobs["top_logprobs"]
+            if top_logprobs and len(top_logprobs) > 0:
+                first_token_probs = top_logprobs[0]
+                sorted_tokens = sorted(first_token_probs.items(), key=lambda x: x[1], reverse=True)
+                topk_tokens = [token for token, _ in sorted_tokens]
+        return topk_tokens
+
+    def generate(self, prompt_messages: list[dict[str, str]]) -> list[str]:
+        """
+        Generate a response using LiteLLM and extract top-k predicted tokens.
 
         Args:
             prompt_messages: The input prompt
 
         Returns:
-            The model's response
+            List of top-k predicted tokens/words (best guess first)
         """
         try:
-            # Use LiteLLM to generate a response
             response = litellm.completion(
                 model=self.model_name,
                 messages=prompt_messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                logprobs=True,
+                top_logprobs=self.top_logprobs,
                 **self.kwargs,
             )
-
-            return response.choices[0].message.content.strip()
-
+            choice = response.choices[0]
+            topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
+            if not topk_tokens:
+                topk_tokens = [choice.message.content.strip()]
+            return topk_tokens
         except Exception as e:
             print(f"Error generating response from {self.model_name}: {e}")
-            return f"Error: {str(e)}"
+            return [f"Error: {str(e)}"]
 
-    async def agenerate(self, prompt_messages: list[dict[str, str]]) -> str:
+    async def agenerate(self, prompt_messages: list[dict[str, str]]) -> list[str]:
         """
-        Generate a response asynchronously using LiteLLM.
+        Generate a response asynchronously using LiteLLM and extract top-k predicted tokens.
 
         Args:
             prompt_messages: The input prompt
 
         Returns:
-            The model's response
+            List of top-k predicted tokens/words (best guess first)
         """
         try:
-            # Use LiteLLM to generate a response asynchronously
             response = await acompletion(
                 model=self.model_name,
                 messages=prompt_messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                logprobs=True,
+                top_logprobs=self.top_logprobs,
                 **self.kwargs,
             )
-
-            return response.choices[0].message.content.strip()
-
+            choice = response.choices[0]
+            topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
+            if not topk_tokens:
+                topk_tokens = [choice.message.content.strip()]
+            return topk_tokens
         except Exception as e:
             print(f"Error generating async response from {self.model_name}: {e}")
-            return f"Error: {str(e)}"
+            return [f"Error: {str(e)}"]
 
-    def batch_generate(self, prompts_messages: list[list[dict[str, str]]]) -> list[str]:
+    def batch_generate(self, prompts_messages: list[list[dict[str, str]]]) -> list[list[str]]:
         """
-        Generate responses for multiple prompts in a batch using LiteLLM.
+        Generate responses for multiple prompts in a batch using LiteLLM and extract top-k predicted tokens.
 
         Args:
             prompts_messages: List of input prompts
 
         Returns:
-            List of model responses
+            List of lists of top-k predicted tokens/words (best guess first)
         """
         try:
-            # Format messages for batch completion
             messages_list = prompts_messages
-
-            # Use LiteLLM batch completion
             responses = batch_completion(
                 model=self.model_name,
                 messages=messages_list,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                logprobs=True,
+                top_logprobs=self.top_logprobs,
                 **self.kwargs,
             )
-
-            # Extract content from responses
-            results = [resp.choices[0].message.content.strip() for resp in responses]
+            results = []
+            for resp in responses:
+                choice = resp.choices[0]
+                topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
+                if not topk_tokens:
+                    topk_tokens = [choice.message.content.strip()]
+                results.append(topk_tokens)
             return results
-
         except Exception as e:
             print(f"Error generating batch responses from {self.model_name}: {e}")
-            return [f"Error: {str(e)}"] * len(prompts)
+            return [[f"Error: {str(e)}"]] * len(prompts_messages)
 
     async def abatch_generate(
         self,
         prompts_messages: list[list[dict[str, str]]],
         batch_size: int = 20,
         delay: float = 0.5,
-    ) -> list[str]:
+    ) -> list[list[str]]:
         """
-        Generate responses for multiple prompts asynchronously in batches using LiteLLM.
+        Generate responses for multiple prompts asynchronously in batches using LiteLLM and extract top-k predicted tokens.
 
         This method processes prompts in smaller batches to avoid overwhelming the API
         and to handle large numbers of prompts efficiently.
@@ -151,38 +176,27 @@ class LLMModel:
             batch_size: Number of prompts to process in each batch
 
         Returns:
-            List of model responses in the same order as the input prompts
+            List of lists of top-k predicted tokens/words (best guess first)
         """
         results = []
-
-        # Process prompts in batches
         for i in range(0, len(prompts_messages), batch_size):
             batch = prompts_messages[i : i + batch_size]
             batch_tasks = [self.agenerate(prompt_message) for prompt_message in batch]
-
             try:
-                # Run batch of async tasks concurrently
                 batch_results = await asyncio.gather(
                     *batch_tasks, return_exceptions=True
                 )
-
-                # Handle exceptions in results
                 processed_results = []
                 for res in batch_results:
                     if isinstance(res, Exception):
-                        processed_results.append(f"Error: {str(res)}")
+                        processed_results.append([f"Error: {str(res)}"])
                     else:
                         processed_results.append(res)
-
                 results.extend(processed_results)
-
             except Exception as e:
                 print(f"Error in batch processing from {self.model_name}: {e}")
-                # If the entire batch fails, add error messages for all prompts in this batch
-                results.extend([f"Error: {str(e)}"] * len(batch))
-
+                results.extend([[f"Error: {str(e)}"]] * len(batch))
             await asyncio.sleep(delay)
-
         return results
 
     @property

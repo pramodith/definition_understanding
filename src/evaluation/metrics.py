@@ -34,11 +34,10 @@ def normalize_word(word: str) -> str:
 
 
 def is_correct_answer(
-    prediction: str,
+    prediction: str | list[str],
     target: str,
     synonyms: list[str] | None = None,
-    fuzzy_match: bool = False,
-) -> bool:
+) -> dict[str, bool]:
     """
     Check if the prediction is correct, considering synonyms.
 
@@ -46,34 +45,33 @@ def is_correct_answer(
         prediction: The predicted word
         target: The target word
         synonyms: List of acceptable synonyms
-        fuzzy_match: Whether to allow fuzzy matching
 
     Returns:
-        True if the prediction is correct, False otherwise
+        Dictionary with keys 'exact', 'synonym', and 'fuzzy' 
+            indicating whether the prediction is correct for each metric
+            Synonym and fuzzy are also correct if exact is correct
     """
-    # Normalize words for comparison
-    prediction = normalize_word(prediction)
+    # Always treat prediction as a list for compatibility
+    preds = prediction if isinstance(prediction, list) else [prediction]
     target = normalize_word(target)
-
-    # Check exact match
-    if prediction == target:
-        return True
-
-    # Check synonyms if provided
-    if synonyms:
-        normalized_synonyms = [normalize_word(syn) for syn in synonyms]
-        if prediction in normalized_synonyms:
-            return True
-
-    # Check fuzzy match if enabled
-    if fuzzy_match:
-        # Simple fuzzy matching: check if one is a substring of the other
-        if (prediction in target) or (target in prediction):
-            return True
-
-        # Could add more sophisticated fuzzy matching here (e.g., Levenshtein distance)
-
-    return False
+    normalized_synonyms = [normalize_word(syn) for syn in synonyms] if synonyms else []
+    is_correct = {"exact": False, "synonym": False, "fuzzy": False}
+    for pred in preds:
+        pred_norm = normalize_word(pred)
+        # Check exact match
+        if pred_norm == target:
+            is_correct["exact"] = True
+            # If exact match, synonym and fuzzy are also correct
+            is_correct["synonym"] = True
+            is_correct["fuzzy"] = True
+        # Check synonyms if provided
+        if not is_correct["synonym"] and normalized_synonyms and pred_norm in normalized_synonyms:
+            is_correct["synonym"] = is_correct["exact"] or True
+        # Check fuzzy match if enabled
+        if not is_correct["fuzzy"]:
+            if (pred_norm in target) or (target in pred_norm):
+                is_correct["fuzzy"] = is_correct["exact"] or True
+    return is_correct
 
 
 def extract_predicted_word(response: str) -> str:
@@ -120,16 +118,12 @@ def extract_predicted_word(response: str) -> str:
 
 def calculate_metrics(
     results: list[dict[str, str | list[str]]],
-    include_synonyms: bool = True,
-    fuzzy_match: bool = False,
 ) -> dict[str, float]:
     """
     Calculate evaluation metrics for LLM performance.
 
     Args:
         results: List of dictionaries with keys 'word', 'definition', 'prediction', and optionally 'synonyms'
-        include_synonyms: Whether to consider synonyms as correct answers
-        fuzzy_match: Whether to allow fuzzy matching
 
     Returns:
         Dictionary of metrics
@@ -139,49 +133,40 @@ def calculate_metrics(
 
     for result in results:
         target = result["word"]
-        prediction = result["prediction"]
-
+        prediction = result["prediction"][0]
         y_true.append(target)
         y_pred.append(prediction)
 
-    # Calculate exact match accuracy (without synonyms)
-    exact_matches = [
-        normalize_word(pred) == normalize_word(true)
-        for pred, true in zip(y_pred, y_true, strict=False)
+    # Calculate exact match accuracy (any of top-k predictions)
+    is_correct = [
+        is_correct_answer(
+            prediction=results[i]["prediction"][0],
+            target=results[i]["word"],
+            synonyms=results[i].get("synonyms", []),
+        )
+        for i in range(len(results))
     ]
-    exact_accuracy = sum(exact_matches) / len(exact_matches)
-
-    # Calculate accuracy with synonyms if requested
-    if include_synonyms or fuzzy_match:
-        synonym_matches = [
-            is_correct_answer(
-                prediction=results[i]["prediction"],
-                target=results[i]["word"],
-                synonyms=results[i].get("synonyms", []) if include_synonyms else None,
-                fuzzy_match=fuzzy_match,
-            )
-            for i in range(len(results))
-        ]
-        synonym_accuracy = sum(synonym_matches) / len(synonym_matches)
-    else:
-        synonym_accuracy = exact_accuracy
+    
+    exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(is_correct)
+    synonym_accuracy = sum(is_correct[i]["synonym"] for i in range(len(is_correct))) / len(is_correct)
+    fuzzy_accuracy = sum(is_correct[i]["fuzzy"] for i in range(len(is_correct))) / len(is_correct)
 
     return {
         "exact_accuracy": exact_accuracy,
         "synonym_accuracy": synonym_accuracy,
+        "fuzzy_accuracy": fuzzy_accuracy,
         "num_samples": len(results),
     }
 
 
 def analyze_results_by_category(
-    results: list[dict[str, str | list[str]]], include_synonyms: bool = True
+    results: list[dict[str, str | list[str]]],
 ) -> dict[str, dict[str, float]]:
     """
     Analyze results by word category (e.g., part of speech, word length).
 
     Args:
         results: List of dictionaries with evaluation results
-        include_synonyms: Whether to consider synonyms as correct answers
 
     Returns:
         Dictionary of metrics by category
@@ -207,7 +192,7 @@ def analyze_results_by_category(
 
             pos_results = df[df["part_of_speech"] == pos].to_dict("records")
             if pos_results:
-                pos_metrics[pos] = calculate_metrics(pos_results, include_synonyms)
+                pos_metrics[pos] = calculate_metrics(pos_results)
 
     # Calculate metrics by word length category
     length_metrics = {}
@@ -217,11 +202,61 @@ def analyze_results_by_category(
 
         category_results = df[df["length_category"] == category].to_dict("records")
         if category_results:
-            length_metrics[str(category)] = calculate_metrics(
-                category_results, include_synonyms
-            )
+            length_metrics[str(category)] = calculate_metrics(category_results)
 
     return {"by_part_of_speech": pos_metrics, "by_word_length": length_metrics}
+
+
+def is_correct_topk(
+    predictions: list[str],
+    target: str,
+) -> tuple[bool, bool]:
+    """
+    Check if the target is in the top-k predictions (exact and fuzzy).
+    Returns (exact_found, fuzzy_found).
+    """
+    # Normalize target and synonyms
+    target_norm = normalize_word(target)
+    exact_found = False
+    fuzzy_found = False
+    for pred in predictions:
+        pred_norm = normalize_word(pred)
+        # Exact match or synonym
+        if pred_norm == target_norm:
+            exact_found = True
+        # Fuzzy match
+        if pred_norm in target_norm or target_norm in pred_norm:
+            fuzzy_found = True
+    return exact_found, fuzzy_found
+
+
+def calculate_topk_metrics(
+    results: list[dict[str, str | list[str]]],
+    topk_list: list[int] = [1, 3, 5],
+    fuzzy_match: bool = False,
+) -> dict[str, float]:
+    """
+    Calculate top-k accuracy and fuzzy accuracy for LLM performance.
+    Each result's 'prediction' should be a list of top-k predictions.
+    """
+    max_valid_k = len(results[0]["prediction"])
+    topk_list = [k for k in topk_list if k <= max_valid_k]
+    metrics = {}
+    n = len(results)
+    for k in topk_list:
+        exact_hits = 0
+        fuzzy_hits = 0
+        for r in results:
+            preds = r["prediction"][:k] if isinstance(r["prediction"], list) else [r["prediction"]]
+            target = r["word"]
+            ex, fz = is_correct_topk(preds, target, fuzzy_match)
+            if ex:
+                exact_hits += 1
+            if fz:
+                fuzzy_hits += 1
+        metrics[f"accuracy@{k}"] = exact_hits / n if n else 0.0
+        metrics[f"fuzzy_accuracy@{k}"] = fuzzy_hits / n if n else 0.0
+    return metrics
 
 
 def save_evaluation_results(
