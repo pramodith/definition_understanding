@@ -19,7 +19,7 @@ from evaluation.metrics import (
     save_evaluation_results,
 )
 from models.model_factory import get_model
-
+from typing import Optional
 
 def create_prompt(definition: str, part_of_speech: str | None = None) -> str:
     """
@@ -65,10 +65,9 @@ async def evaluate_model_async(
     dataset_path: str,
     output_dir: str,
     num_samples: int | None = None,
-    include_synonyms: bool = True,
-    fuzzy_match: bool = False,
     verbose: bool = False,
-    batch_size: int = 20,
+    batch_size: int = 5,
+    top_logprobs: Optional[int] = None,
 ) -> dict[str, float]:
     """
     Evaluate an LLM's performance on word definition understanding using async batch processing.
@@ -94,7 +93,8 @@ async def evaluate_model_async(
         df = df.sample(num_samples, random_state=42)
 
     # Get model
-    model = get_model(model_name)
+    model = get_model(model_name, logprobs=True, top_logprobs=top_logprobs)
+    judgellm_model = get_model(model_name)
 
     print(
         f"Evaluating {model_name} on {len(df)} samples using async batch processing..."
@@ -170,8 +170,8 @@ async def evaluate_model_async(
             print("-" * 50)
 
     # Calculate metrics
-    metrics = calculate_metrics(results)
-    topk_metrics = calculate_topk_metrics(results, topk_list=[1, 3, 5])
+    metrics = calculate_metrics(results, judgellm_model)
+    topk_metrics = calculate_topk_metrics(results, topk_list=[1, 3, 5], judgellm_model=judgellm_model)
     metrics.update(topk_metrics)
 
     # Analyze results by category
@@ -186,10 +186,12 @@ async def evaluate_model_async(
     print(f"\nEvaluation results for {model_name}:")
     print(f"Exact match accuracy: {metrics['exact_accuracy']:.4f}")
     print(f"Accuracy with synonyms: {metrics['synonym_accuracy']:.4f}")
+    print(f"Judgellm accuracy: {metrics['judgellm_accuracy']:.4f}")
     print(f"Number of samples: {metrics['num_samples']}")
     for k in [1, 3, 5]:
         print(f"accuracy@{k}: {metrics.get(f'accuracy@{k}', 0):.4f}")
         print(f"fuzzy_accuracy@{k}: {metrics.get(f'fuzzy_accuracy@{k}', 0):.4f}")
+        print(f"judgellm_accuracy@{k}: {metrics.get(f'judgellm_accuracy@{k}', 0):.4f}")
 
     return metrics
 
@@ -199,10 +201,9 @@ def evaluate_model(
     dataset_path: str,
     output_dir: str,
     num_samples: int | None = None,
-    include_synonyms: bool = True,
-    fuzzy_match: bool = False,
     verbose: bool = False,
     batch_size: int = 20,
+    top_logprobs: Optional[int] = None,
 ) -> dict[str, float]:
     """
     Evaluate an LLM's performance on word definition understanding.
@@ -213,13 +214,12 @@ def evaluate_model(
         dataset_path: Path to the dataset of word definitions
         output_dir: Directory to save evaluation results
         num_samples: Number of samples to evaluate (None for all)
-        include_synonyms: Whether to consider synonyms as correct answers
-        fuzzy_match: Whether to allow fuzzy matching
         verbose: Whether to print detailed information
         batch_size: Number of prompts to process in each batch
+        top_logprobs: Number of top log-probabilities to return
 
     Returns:
-        Dictionary of evaluation metrics
+        Dictionary of evaluation metrics.........
     """
     # Run the async evaluation in the event loop
     return asyncio.run(
@@ -228,10 +228,9 @@ def evaluate_model(
             dataset_path=dataset_path,
             output_dir=output_dir,
             num_samples=num_samples,
-            include_synonyms=include_synonyms,
-            fuzzy_match=fuzzy_match,
             verbose=verbose,
             batch_size=batch_size,
+            top_logprobs=top_logprobs,
         )
     )
 
@@ -270,21 +269,19 @@ def main():
         default=10,
     )
     parser.add_argument(
-        "--no-synonyms",
-        action="store_true",
-        help="Don't consider synonyms as correct answers",
-    )
-    parser.add_argument(
-        "--fuzzy-match", action="store_true", help="Allow fuzzy matching"
-    )
-    parser.add_argument(
         "--verbose", action="store_true", help="Print detailed information"
     )
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=20,
+        default=5,
         help="Number of prompts to process in each batch",
+    )
+    parser.add_argument(
+        "--top-logprobs",
+        type=int,
+        default=5,
+        help="Number of top log-probabilities to return",
     )
 
     args = parser.parse_args()
@@ -294,10 +291,9 @@ def main():
         dataset_path=args.dataset,
         output_dir=args.output_dir,
         num_samples=args.num_samples,
-        include_synonyms=not args.no_synonyms,
-        fuzzy_match=args.fuzzy_match,
         verbose=args.verbose,
         batch_size=args.batch_size,
+        top_logprobs=args.top_logprobs,
     )
 
 

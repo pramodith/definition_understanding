@@ -10,7 +10,7 @@ import os
 
 import litellm
 from litellm import acompletion, batch_completion
-
+from typing import Optional
 
 class LLMModel:
     """Base class for LLM interfaces using LiteLLM."""
@@ -21,7 +21,8 @@ class LLMModel:
         api_key: str | None = None,
         temperature: float = 0.0,
         max_tokens: int = 50,
-        top_logprobs: int = 5,
+        logprobs: bool = False,
+        top_logprobs: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -51,6 +52,7 @@ class LLMModel:
         # Store generation parameters
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.logprobs = logprobs
         self.top_logprobs = top_logprobs
         self.kwargs = kwargs
 
@@ -59,13 +61,13 @@ class LLMModel:
         Helper to extract top-k tokens from a LiteLLM choice logprobs dict.
         Returns a list of top-k tokens (best guess first) or an empty list if not available.
         """
-        topk_tokens = []
-        if hasattr(choice, "logprobs") and choice.logprobs and "top_logprobs" in choice.logprobs:
-            top_logprobs = choice.logprobs["top_logprobs"]
-            if top_logprobs and len(top_logprobs) > 0:
-                first_token_probs = top_logprobs[0]
-                sorted_tokens = sorted(first_token_probs.items(), key=lambda x: x[1], reverse=True)
-                topk_tokens = [token for token, _ in sorted_tokens]
+        topk_tokens = ["" for _ in range(self.top_logprobs)]
+        if hasattr(choice, "logprobs") and choice.logprobs:
+            for content in choice.logprobs.content:
+                top_logprobs = content["top_logprobs"]
+                for ind, t in enumerate(top_logprobs):
+                    topk_tokens[ind] += t.token
+
         return topk_tokens
 
     def generate(self, prompt_messages: list[dict[str, str]]) -> list[str]:
@@ -84,15 +86,16 @@ class LLMModel:
                 messages=prompt_messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                logprobs=True,
+                logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
                 **self.kwargs,
             )
             choice = response.choices[0]
-            topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
-            if not topk_tokens:
+            if self.top_logprobs is not None:
+                topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
+            else:
                 topk_tokens = [choice.message.content.strip()]
-            return topk_tokens
+            return [choice.message.content.strip()]
         except Exception as e:
             print(f"Error generating response from {self.model_name}: {e}")
             return [f"Error: {str(e)}"]
@@ -113,7 +116,7 @@ class LLMModel:
                 messages=prompt_messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                logprobs=True,
+                logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
                 **self.kwargs,
             )
@@ -143,7 +146,7 @@ class LLMModel:
                 messages=messages_list,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                logprobs=True,
+                logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
                 **self.kwargs,
             )

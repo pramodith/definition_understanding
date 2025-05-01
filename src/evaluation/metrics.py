@@ -9,6 +9,7 @@ import json
 import re
 
 import pandas as pd
+from models.base_model import LLMModel
 
 
 def normalize_word(word: str) -> str:
@@ -37,41 +38,73 @@ def is_correct_answer(
     prediction: str | list[str],
     target: str,
     synonyms: list[str] | None = None,
+    judgellm_model: LLMModel | None = None,
 ) -> dict[str, bool]:
     """
-    Check if the prediction is correct, considering synonyms.
+    Check if the prediction is correct, considering synonyms and JudgeLLM.
 
     Args:
-        prediction: The predicted word
+        prediction: The predicted word(s)
         target: The target word
         synonyms: List of acceptable synonyms
+        judgellm_model: Optional LLMModel instance for JudgeLLM
 
     Returns:
-        Dictionary with keys 'exact', 'synonym', and 'fuzzy' 
-            indicating whether the prediction is correct for each metric
-            Synonym and fuzzy are also correct if exact is correct
+        Dictionary with keys 'exact', 'synonym', 'fuzzy', 'judgellm'
     """
-    # Always treat prediction as a list for compatibility
     preds = prediction if isinstance(prediction, list) else [prediction]
-    target = normalize_word(target)
+    target_norm = normalize_word(target)
     normalized_synonyms = [normalize_word(syn) for syn in synonyms] if synonyms else []
-    is_correct = {"exact": False, "synonym": False, "fuzzy": False}
+    is_correct = {"exact": False, "synonym": False, "fuzzy": False, "judgellm": False}
     for pred in preds:
         pred_norm = normalize_word(pred)
         # Check exact match
-        if pred_norm == target:
+        if pred_norm == target_norm:
             is_correct["exact"] = True
-            # If exact match, synonym and fuzzy are also correct
             is_correct["synonym"] = True
             is_correct["fuzzy"] = True
+            is_correct["judgellm"] = True
         # Check synonyms if provided
         if not is_correct["synonym"] and normalized_synonyms and pred_norm in normalized_synonyms:
             is_correct["synonym"] = is_correct["exact"] or True
-        # Check fuzzy match if enabled
+        # Check fuzzy match
         if not is_correct["fuzzy"]:
-            if (pred_norm in target) or (target in pred_norm):
+            if (pred_norm in target_norm) or (target_norm in pred_norm):
                 is_correct["fuzzy"] = is_correct["exact"] or True
+    # If none are True, call JudgeLLM if provided
+    if not is_correct["exact"] and judgellm_model:
+        for pred in preds:
+            if judge_llm_equivalence(pred, target, judgellm_model):
+                is_correct["judgellm"] = True
+                break
     return is_correct
+
+
+def judge_llm_equivalence(prediction: str, target: str, llm_model: LLMModel) -> bool:
+    """
+    Uses an LLM to judge if two words are equivalent (ignoring tense, plurality, etc).
+    Returns True if the LLM says they are equivalent.
+    """
+    examples = f"""## Examples
+    Are the words 'run' and 'ran' the same, disregarding tense, plurality, or minor inflections? Yes
+    Are the words 'run' and 'running' the same, disregarding tense, plurality, or minor inflections? Yes
+    Are the words 'goal' and 'goalie' the same, disregarding tense, plurality, or minor inflections? No
+    """
+    prompt = [{
+        "role": "system", 
+        "content": "You are an expert linguist. You will judge if two words are the same, disregarding tense, plurality, or minor inflections.\n\n" + examples
+        },
+        {"role": "user", 
+        "content": f"Are the words '{prediction}' and '{target}' the same, disregarding tense, plurality, or minor inflections? Answer 'Yes' or 'No'."
+        },
+    ]
+    try:
+        response = llm_model.generate(prompt)[0]
+        # Accept 'yes' if it's in the first token or anywhere in the response
+        return "yes" in response.lower()
+    except Exception as e:
+        print(f"JudgeLLM error: {e}")
+        return False
 
 
 def extract_predicted_word(response: str) -> str:
@@ -118,6 +151,7 @@ def extract_predicted_word(response: str) -> str:
 
 def calculate_metrics(
     results: list[dict[str, str | list[str]]],
+    judgellm_model: LLMModel | None = None,
 ) -> dict[str, float]:
     """
     Calculate evaluation metrics for LLM performance.
@@ -143,6 +177,7 @@ def calculate_metrics(
             prediction=results[i]["prediction"][0],
             target=results[i]["word"],
             synonyms=results[i].get("synonyms", []),
+            judgellm_model=judgellm_model,
         )
         for i in range(len(results))
     ]
@@ -150,11 +185,13 @@ def calculate_metrics(
     exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(is_correct)
     synonym_accuracy = sum(is_correct[i]["synonym"] for i in range(len(is_correct))) / len(is_correct)
     fuzzy_accuracy = sum(is_correct[i]["fuzzy"] for i in range(len(is_correct))) / len(is_correct)
+    judgellm_accuracy = sum(is_correct[i]["judgellm"] for i in range(len(is_correct))) / len(is_correct)
 
     return {
         "exact_accuracy": exact_accuracy,
         "synonym_accuracy": synonym_accuracy,
         "fuzzy_accuracy": fuzzy_accuracy,
+        "judgellm_accuracy": judgellm_accuracy,
         "num_samples": len(results),
     }
 
@@ -210,15 +247,24 @@ def analyze_results_by_category(
 def is_correct_topk(
     predictions: list[str],
     target: str,
-) -> tuple[bool, bool]:
+    judgellm_model: LLMModel | None = None,
+) -> tuple[bool, bool, bool]:
     """
     Check if the target is in the top-k predictions (exact and fuzzy).
-    Returns (exact_found, fuzzy_found).
+    Args:
+        predictions: List of top-k predicted tokens/words
+        target: The target word
+        judgellm_model: Optional JudgeLLM model for fuzzy matching
+    Returns: 
+        exact_found: Whether the target was found in the top-k predictions (exact match)
+        fuzzy_found: Whether the target was found in the top-k predictions (fuzzy match)
+        judgellm_found: Whether the target was found in the top-k predictions (JudgeLLM match)
     """
     # Normalize target and synonyms
     target_norm = normalize_word(target)
     exact_found = False
     fuzzy_found = False
+    judgellm_found = False
     for pred in predictions:
         pred_norm = normalize_word(pred)
         # Exact match or synonym
@@ -227,17 +273,28 @@ def is_correct_topk(
         # Fuzzy match
         if pred_norm in target_norm or target_norm in pred_norm:
             fuzzy_found = True
-    return exact_found, fuzzy_found
+        # JudgeLLM
+        if judgellm_model and not exact_found:
+            if judge_llm_equivalence(pred, target, judgellm_model):
+                judgellm_found = True
+    
+    return exact_found, fuzzy_found, judgellm_found
 
 
 def calculate_topk_metrics(
     results: list[dict[str, str | list[str]]],
     topk_list: list[int] = [1, 3, 5],
-    fuzzy_match: bool = False,
+    judgellm_model: LLMModel | None = None,
 ) -> dict[str, float]:
     """
     Calculate top-k accuracy and fuzzy accuracy for LLM performance.
     Each result's 'prediction' should be a list of top-k predictions.
+    Args:
+        results: List of dictionaries with keys 'word', 'definition', 'prediction', and optionally 'synonyms'
+        topk_list: List of top-k values to calculate accuracy for
+        judgellm_model: Optional JudgeLLM model for fuzzy matching
+    Returns:
+        Dictionary of metrics
     """
     max_valid_k = len(results[0]["prediction"])
     topk_list = [k for k in topk_list if k <= max_valid_k]
@@ -245,17 +302,21 @@ def calculate_topk_metrics(
     n = len(results)
     for k in topk_list:
         exact_hits = 0
+        judgellm_hits = 0
         fuzzy_hits = 0
         for r in results:
             preds = r["prediction"][:k] if isinstance(r["prediction"], list) else [r["prediction"]]
             target = r["word"]
-            ex, fz = is_correct_topk(preds, target, fuzzy_match)
+            ex, fz, judgellm = is_correct_topk(preds, target, judgellm_model)
             if ex:
                 exact_hits += 1
             if fz:
                 fuzzy_hits += 1
+            if judgellm:
+                judgellm_hits += 1
         metrics[f"accuracy@{k}"] = exact_hits / n if n else 0.0
         metrics[f"fuzzy_accuracy@{k}"] = fuzzy_hits / n if n else 0.0
+        metrics[f"judgellm_accuracy@{k}"] = judgellm_hits / n if n else 0.0
     return metrics
 
 
