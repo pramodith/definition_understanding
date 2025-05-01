@@ -44,17 +44,17 @@ def test_is_correct_answer():
     )
 
     # Test fuzzy matching
-    assert is_correct_answer("app", "apple", fuzzy_match=True)["fuzzy"] is True
-    assert is_correct_answer("applesauce", "apple", fuzzy_match=True)["fuzzy"] is True
-    assert is_correct_answer("banana", "apple", fuzzy_match=True)["fuzzy"] is False
+    assert is_correct_answer("app", "apple")["fuzzy"] is True
+    assert is_correct_answer("applesauce", "apple")["fuzzy"] is True
+    assert is_correct_answer("banana", "apple")["fuzzy"] is False
 
     # Test with list of predictions (top-k)
     assert is_correct_answer(["apple", "banana"], "apple")["exact"] is True
     assert is_correct_answer(["banana", "pear"], "apple")["exact"] is False
     assert is_correct_answer(["fruit", "produce"], "apple", synonyms=["fruit", "produce"])["synonym"] is True
     assert is_correct_answer(["vegetable", "grain"], "apple", synonyms=["fruit", "produce"])["synonym"] is False
-    assert is_correct_answer(["app", "applesauce"], "apple", fuzzy_match=True)["fuzzy"] is True
-    assert is_correct_answer(["banana", "pear"], "apple", fuzzy_match=True)["fuzzy"] is False
+    assert is_correct_answer(["app", "applesauce"], "apple")["fuzzy"] is True
+    assert is_correct_answer(["banana", "pear"], "apple")["fuzzy"] is False
 
 
 def test_extract_predicted_word():
