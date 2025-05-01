@@ -10,14 +10,15 @@ import json
 import os
 import random
 import time
-from typing import Dict, List, Optional
 
 import pandas as pd
 import requests
 from tqdm import tqdm
 
 # Constants
-DEFAULT_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+DEFAULT_OUTPUT_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+)
 DEFAULT_WORD_LIST_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "word_list.txt")
 DEFAULT_OUTPUT_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "dictionary_data.json")
 DEFAULT_PROCESSED_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "processed_dictionary.csv")
@@ -29,104 +30,112 @@ DICTIONARY_API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
 WORDS_API_URL = "https://wordsapiv1.p.rapidapi.com/words/{word}/definitions"
 WORDS_API_HEADERS = {
     "X-RapidAPI-Key": "",  # Add your API key here if using WordsAPI
-    "X-RapidAPI-Host": "wordsapiv1.p.rapidapi.com"
+    "X-RapidAPI-Host": "wordsapiv1.p.rapidapi.com",
 }
 
 
-def get_word_list(file_path: Optional[str] = None, num_words: int = 1000) -> List[str]:
+def get_word_list(file_path: str | None = None, num_words: int = 1000) -> list[str]:
     """
     Get a list of words to fetch definitions for.
-    
+
     If file_path is provided, reads words from the file.
     Otherwise, fetches a list of common English words.
-    
+
     Args:
         file_path: Path to a file containing words (one per line)
         num_words: Number of words to fetch if downloading
-        
+
     Returns:
         List of words
     """
     if file_path and os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             return [line.strip() for line in f if line.strip()]
-    
+
     # If no file provided, fetch words from an online source
     print(f"Fetching {num_words} common English words...")
-    
+
     # Using Datamuse API to get common words
     word_list = []
-    
+
     # We'll generate two random letter combinations and fetch words for each
     while len(word_list) < num_words:
-        letter1 = random.choice('abcdefghijklmnopqrstuvwxyz')
-        letter2 = random.choice('abcdefghijklmnopqrstuvwxyz')
+        letter1 = random.choice("abcdefghijklmnopqrstuvwxyz")
+        letter2 = random.choice("abcdefghijklmnopqrstuvwxyz")
 
         # Fetch words for each letter combination
-        response = requests.get(f"https://api.datamuse.com/words?sp={letter1}*{letter2}&max=10")
+        response = requests.get(
+            f"https://api.datamuse.com/words?sp={letter1}*{letter2}&max=10"
+        )
         if response.status_code == 200:
             data = response.json()
-            word_list.extend([item['word'] for item in data if 'word' in item])
-    
+            word_list.extend([item["word"] for item in data if "word" in item])
+
     # Save the word list for future use
     os.makedirs(os.path.dirname(DEFAULT_WORD_LIST_FILE), exist_ok=True)
-    with open(DEFAULT_WORD_LIST_FILE, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(word_list))
-    
+    with open(DEFAULT_WORD_LIST_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(word_list))
+
     return word_list
 
 
-def fetch_definition_from_free_dictionary(word: str) -> Dict:
+def fetch_definition_from_free_dictionary(word: str) -> dict:
     """
     Fetch definition from the Free Dictionary API.
-    
+
     Args:
         word: The word to fetch the definition for
-        
+
     Returns:
         Dictionary containing the word's definitions and metadata
     """
     url = DICTIONARY_API_URL.format(word=word)
     response = requests.get(url)
-    
+
     if response.status_code == 200:
         return response.json()
     else:
-        return {"error": f"Failed to fetch definition for '{word}'", "status_code": response.status_code}
+        return {
+            "error": f"Failed to fetch definition for '{word}'",
+            "status_code": response.status_code,
+        }
 
 
-def fetch_definition_from_words_api(word: str) -> Dict:
+def fetch_definition_from_words_api(word: str) -> dict:
     """
     Fetch definition from WordsAPI (alternative, requires API key).
-    
+
     Args:
         word: The word to fetch the definition for
-        
+
     Returns:
         Dictionary containing the word's definitions and metadata
     """
     if not WORDS_API_HEADERS["X-RapidAPI-Key"]:
         return {"error": "WordsAPI key not provided"}
-    
+
     url = WORDS_API_URL.format(word=word)
     response = requests.get(url, headers=WORDS_API_HEADERS)
-    
+
     if response.status_code == 200:
         return response.json()
     else:
-        return {"error": f"Failed to fetch definition for '{word}'", "status_code": response.status_code}
+        return {
+            "error": f"Failed to fetch definition for '{word}'",
+            "status_code": response.status_code,
+        }
 
 
 def collect_dictionary_data(
-    word_list: List[str],
+    word_list: list[str],
     output_file: str = DEFAULT_OUTPUT_FILE,
     api: str = "free_dictionary",
-    max_words: Optional[int] = None,
-    delay: float = 0.5
+    max_words: int | None = None,
+    delay: float = 0.5,
 ) -> None:
     """
     Collect dictionary data for a list of words.
-    
+
     Args:
         word_list: List of words to fetch definitions for
         output_file: Path to save the raw dictionary data
@@ -136,42 +145,42 @@ def collect_dictionary_data(
     """
     if max_words:
         word_list = word_list[:max_words]
-    
+
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    
+
     # Check if output file exists and load existing data
     existing_data = {}
     if os.path.exists(output_file):
-        with open(output_file, 'r', encoding='utf-8') as f:
+        with open(output_file, encoding="utf-8") as f:
             try:
                 existing_data = json.load(f)
             except json.JSONDecodeError:
                 existing_data = {}
-    
+
     # Fetch definitions for words not already in the existing data
     new_words = [word for word in word_list if word not in existing_data]
-    
+
     if not new_words:
         print(f"All {len(word_list)} words already have definitions in {output_file}")
         return
-    
+
     print(f"Fetching definitions for {len(new_words)} new words...")
-    
+
     for word in tqdm(new_words):
         if api == "free_dictionary":
             definition_data = fetch_definition_from_free_dictionary(word)
         else:  # words_api
             definition_data = fetch_definition_from_words_api(word)
-        
+
         existing_data[word] = definition_data
-        
+
         # Save after each word to avoid losing data if interrupted
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(existing_data, f, indent=2)
-        
+
         # Add delay to avoid rate limiting
         time.sleep(delay)
-    
+
     print(f"Dictionary data collected and saved to {output_file}")
 
 
@@ -179,11 +188,11 @@ def process_dictionary_data(
     input_file: str = DEFAULT_OUTPUT_FILE,
     output_file: str = DEFAULT_PROCESSED_FILE,
     min_definition_length: int = 10,
-    max_definition_length: int = 200
+    max_definition_length: int = 200,
 ) -> None:
     """
     Process raw dictionary data into a format suitable for LLM evaluation.
-    
+
     Args:
         input_file: Path to the raw dictionary data file
         output_file: Path to save the processed data
@@ -193,17 +202,17 @@ def process_dictionary_data(
     if not os.path.exists(input_file):
         print(f"Input file {input_file} does not exist")
         return
-    
-    with open(input_file, 'r', encoding='utf-8') as f:
+
+    with open(input_file, encoding="utf-8") as f:
         raw_data = json.load(f)
-    
+
     processed_data = []
-    
+
     for word, data in raw_data.items():
         # Skip entries with errors
         if isinstance(data, dict) and "error" in data:
             continue
-        
+
         # Process data from Free Dictionary API
         if isinstance(data, list):
             for entry in data:
@@ -213,38 +222,58 @@ def process_dictionary_data(
                             for definition_item in meaning["definitions"]:
                                 if "definition" in definition_item:
                                     definition = definition_item["definition"].strip()
-                                    
+
                                     # Filter by definition length
-                                    if min_definition_length <= len(definition) <= max_definition_length:
-                                        processed_data.append({
-                                            "word": word,
-                                            "definition": definition,
-                                            "part_of_speech": meaning.get("partOfSpeech", ""),
-                                            "synonyms": definition_item.get("synonyms", []),
-                                            "antonyms": definition_item.get("antonyms", [])
-                                        })
-        
+                                    if (
+                                        min_definition_length
+                                        <= len(definition)
+                                        <= max_definition_length
+                                    ):
+                                        processed_data.append(
+                                            {
+                                                "word": word,
+                                                "definition": definition,
+                                                "part_of_speech": meaning.get(
+                                                    "partOfSpeech", ""
+                                                ),
+                                                "synonyms": definition_item.get(
+                                                    "synonyms", []
+                                                ),
+                                                "antonyms": definition_item.get(
+                                                    "antonyms", []
+                                                ),
+                                            }
+                                        )
+
         # Process data from WordsAPI
         elif isinstance(data, dict) and "definitions" in data:
             for definition_item in data["definitions"]:
                 if "definition" in definition_item:
                     definition = definition_item["definition"].strip()
-                    
+
                     # Filter by definition length
-                    if min_definition_length <= len(definition) <= max_definition_length:
-                        processed_data.append({
-                            "word": word,
-                            "definition": definition,
-                            "part_of_speech": definition_item.get("partOfSpeech", ""),
-                            "synonyms": [],  # WordsAPI format may differ
-                            "antonyms": []
-                        })
-    
+                    if (
+                        min_definition_length
+                        <= len(definition)
+                        <= max_definition_length
+                    ):
+                        processed_data.append(
+                            {
+                                "word": word,
+                                "definition": definition,
+                                "part_of_speech": definition_item.get(
+                                    "partOfSpeech", ""
+                                ),
+                                "synonyms": [],  # WordsAPI format may differ
+                                "antonyms": [],
+                            }
+                        )
+
     # Convert to DataFrame and save
     df = pd.DataFrame(processed_data)
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     df.to_csv(output_file, index=False)
-    
+
     print(f"Processed {len(df)} definitions and saved to {output_file}")
     print(f"Dataset contains definitions for {df['word'].nunique()} unique words")
 
@@ -252,42 +281,77 @@ def process_dictionary_data(
 def main():
     """Main function to run the dictionary data collection and processing."""
     parser = argparse.ArgumentParser(description="Collect and process dictionary data")
-    parser.add_argument("--word-list", type=str, help="Path to a file containing words (one per line)")
-    parser.add_argument("--num-words", type=int, default=1000, help="Number of words to fetch if downloading")
-    parser.add_argument("--output-dir", type=str, default=DEFAULT_OUTPUT_DIR, help="Directory to save output files")
-    parser.add_argument("--api", type=str, choices=["free_dictionary", "words_api"], default="free_dictionary", 
-                        help="API to use for fetching definitions")
-    parser.add_argument("--max-words", type=int, help="Maximum number of words to process")
-    parser.add_argument("--delay", type=float, default=0.5, help="Delay between API requests")
-    parser.add_argument("--skip-collection", action="store_true", help="Skip data collection and only process existing data")
-    parser.add_argument("--min-definition-length", type=int, default=10, help="Minimum length of definitions to include")
-    parser.add_argument("--max-definition-length", type=int, default=200, help="Maximum length of definitions to include")
-    
+    parser.add_argument(
+        "--word-list", type=str, help="Path to a file containing words (one per line)"
+    )
+    parser.add_argument(
+        "--num-words",
+        type=int,
+        default=1000,
+        help="Number of words to fetch if downloading",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=DEFAULT_OUTPUT_DIR,
+        help="Directory to save output files",
+    )
+    parser.add_argument(
+        "--api",
+        type=str,
+        choices=["free_dictionary", "words_api"],
+        default="free_dictionary",
+        help="API to use for fetching definitions",
+    )
+    parser.add_argument(
+        "--max-words", type=int, help="Maximum number of words to process"
+    )
+    parser.add_argument(
+        "--delay", type=float, default=0.5, help="Delay between API requests"
+    )
+    parser.add_argument(
+        "--skip-collection",
+        action="store_true",
+        help="Skip data collection and only process existing data",
+    )
+    parser.add_argument(
+        "--min-definition-length",
+        type=int,
+        default=10,
+        help="Minimum length of definitions to include",
+    )
+    parser.add_argument(
+        "--max-definition-length",
+        type=int,
+        default=200,
+        help="Maximum length of definitions to include",
+    )
+
     args = parser.parse_args()
-    
+
     # Update output paths based on output directory
     output_file = os.path.join(args.output_dir, "dictionary_data.json")
     processed_file = os.path.join(args.output_dir, "processed_dictionary.csv")
-    
+
     if not args.skip_collection:
         # Get word list
         word_list = get_word_list(args.word_list, args.num_words)
-        
+
         # Collect dictionary data
         collect_dictionary_data(
             word_list=word_list,
             output_file=output_file,
             api=args.api,
             max_words=args.max_words,
-            delay=args.delay
+            delay=args.delay,
         )
-    
+
     # Process dictionary data
     process_dictionary_data(
         input_file=output_file,
         output_file=processed_file,
         min_definition_length=args.min_definition_length,
-        max_definition_length=args.max_definition_length
+        max_definition_length=args.max_definition_length,
     )
 
 

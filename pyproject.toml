@@ -18,6 +18,7 @@ dependencies = [
     "tqdm",
     "hf_transfer",
     "dotenv>=0.9.9",
+    "ruff>=0.11.7",
 ]
 
 [project.optional-dependencies]
@@ -31,3 +32,38 @@ dev = [
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+# Enable all default linting rules
+line-length = 88
+# Select commonly used rules; you can add/remove as needed
+lint.select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "B",    # bugbear
+    "I",    # isort (import sorting)
+    "UP",   # pyupgrade
+    "C90",  # mccabe
+]
+lint.ignore = [
+    "E501", # ignore line length if you want
+]
+lint.exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+]
+target-version = "py311"
+
+[tool.ruff.format]
+# Use ruff's formatter (alternative to black)
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+# Enable import sorting
+known-first-party = ["src"]
+combine-as-imports = true
+force-sort-within-sections = true

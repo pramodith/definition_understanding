@@ -12,39 +12,33 @@ from models.model_factory import get_model
 def openai_example(api_key: str = None) -> None:
     """
     Example of using OpenAI models with LiteLLM.
-    
+
     Args:
         api_key: OpenAI API key (optional, can use environment variable)
     """
     # Use OpenAI GPT-3.5 Turbo
     model = get_model(
-        model_name="gpt-3.5-turbo",
-        api_key=api_key,
-        temperature=0.0,
-        max_tokens=50
+        model_name="gpt-3.5-turbo", api_key=api_key, temperature=0.0, max_tokens=50
     )
-    
+
     # Generate a response
     prompt = "What is the capital of France?"
     response = model.generate(prompt)
-    
+
     print(f"Model: {model.name}")
     print(f"Prompt: {prompt}")
     print(f"Response: {response}")
     print("-" * 50)
-    
+
     # Use OpenAI GPT-4
     model = get_model(
-        model_name="gpt-4",
-        api_key=api_key,
-        temperature=0.0,
-        max_tokens=50
+        model_name="gpt-4", api_key=api_key, temperature=0.0, max_tokens=50
     )
-    
+
     # Generate a response
     prompt = "Explain quantum computing in one sentence."
     response = model.generate(prompt)
-    
+
     print(f"Model: {model.name}")
     print(f"Prompt: {prompt}")
     print(f"Response: {response}")
@@ -54,7 +48,7 @@ def openai_example(api_key: str = None) -> None:
 def anthropic_example(api_key: str = None) -> None:
     """
     Example of using Anthropic models with LiteLLM.
-    
+
     Args:
         api_key: Anthropic API key (optional, can use environment variable)
     """
@@ -63,30 +57,30 @@ def anthropic_example(api_key: str = None) -> None:
         model_name="anthropic/claude-3-sonnet-20240229",
         api_key=api_key,
         temperature=0.0,
-        max_tokens=50
+        max_tokens=50,
     )
-    
+
     # Generate a response
     prompt = "What is the capital of France?"
     response = model.generate(prompt)
-    
+
     print(f"Model: {model.name}")
     print(f"Prompt: {prompt}")
     print(f"Response: {response}")
     print("-" * 50)
-    
+
     # Use Anthropic Claude 3 Opus
     model = get_model(
         model_name="anthropic/claude-3-opus-20240229",
         api_key=api_key,
         temperature=0.0,
-        max_tokens=50
+        max_tokens=50,
     )
-    
+
     # Generate a response
     prompt = "Explain quantum computing in one sentence."
     response = model.generate(prompt)
-    
+
     print(f"Model: {model.name}")
     print(f"Prompt: {prompt}")
     print(f"Response: {response}")
@@ -96,7 +90,7 @@ def anthropic_example(api_key: str = None) -> None:
 def together_ai_example(api_key: str = None) -> None:
     """
     Example of using Together AI models with LiteLLM.
-    
+
     Args:
         api_key: Together AI API key (optional, can use environment variable)
     """
@@ -105,18 +99,17 @@ def together_ai_example(api_key: str = None) -> None:
         model_name="mistralai/Mistral-7B-Instruct-v0.2",
         api_key=api_key,
         temperature=0.0,
-        max_tokens=50
+        max_tokens=50,
     )
-    
+
     # Generate a response
     prompt = "What is the capital of France?"
     response = model.generate(prompt)
-    
+
     print(f"Model: {model.name}")
     print(f"Prompt: {prompt}")
     print(f"Response: {response}")
     print("-" * 50)
-    
 
 
 def run_all_examples() -> None:
@@ -126,13 +119,13 @@ def run_all_examples() -> None:
         openai_example()
     except Exception as e:
         print(f"Error running OpenAI examples: {e}")
-    
+
     print("\nRunning Anthropic examples...")
     try:
         anthropic_example()
     except Exception as e:
         print(f"Error running Anthropic examples: {e}")
-    
+
     print("\nRunning Together AI examples...")
     try:
         together_ai_example()
