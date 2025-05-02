@@ -14,6 +14,7 @@ This project tests LLMs' ability to predict words based on their definitions. Th
 ## Project Structure
 
 - `data/`: Contains raw and processed dictionary datasets
+   - Download the medical terms dataset from [here](https://github.com/glutanimate/wordlist-medicalterms-en/blob/master/wordlist.txt)
 - `src/`: Source code for the project
   - `data_processing/`: Scripts for data acquisition and preprocessing
   - `evaluation/`: Modules for evaluating LLM performance
@@ -24,11 +25,20 @@ This project tests LLMs' ability to predict words based on their definitions. Th
 ## Getting Started
 
 1. Set up the environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e .
-   ```
+```
+Install uv if not already installed:
+pip install uv
+
+Create and activate a virtual environment:
+`uv venv`
+On windows:
+`venv\Scripts\activate`
+On linux:
+`sudo venv/bin/activate`
+
+Install dependencies:
+uv sync
+```
 
 2. Run the data collection script:
    ```bash
