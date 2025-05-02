@@ -9,6 +9,7 @@ import json
 import re
 
 import pandas as pd
+
 from models.base_model import LLMModel
 
 
@@ -65,7 +66,11 @@ def is_correct_answer(
             is_correct["fuzzy"] = True
             is_correct["judgellm"] = True
         # Check synonyms if provided
-        if not is_correct["synonym"] and normalized_synonyms and pred_norm in normalized_synonyms:
+        if (
+            not is_correct["synonym"]
+            and normalized_synonyms
+            and pred_norm in normalized_synonyms
+        ):
             is_correct["synonym"] = is_correct["exact"] or True
         # Check fuzzy match
         if not is_correct["fuzzy"]:
@@ -85,17 +90,20 @@ def judge_llm_equivalence(prediction: str, target: str, llm_model: LLMModel) -> 
     Uses an LLM to judge if two words are equivalent (ignoring tense, plurality, etc).
     Returns True if the LLM says they are equivalent.
     """
-    examples = f"""## Examples
+    examples = """## Examples
     Are the words 'run' and 'ran' the same, disregarding tense, plurality, or minor inflections? Yes
     Are the words 'run' and 'running' the same, disregarding tense, plurality, or minor inflections? Yes
     Are the words 'goal' and 'goalie' the same, disregarding tense, plurality, or minor inflections? No
     """
-    prompt = [{
-        "role": "system", 
-        "content": "You are an expert linguist. You will judge if two words are the same, disregarding tense, plurality, or minor inflections.\n\n" + examples
+    prompt = [
+        {
+            "role": "system",
+            "content": "You are an expert linguist. You will judge if two words are the same, disregarding tense, plurality, or minor inflections.\n\n"
+            + examples,
         },
-        {"role": "user", 
-        "content": f"Are the words '{prediction}' and '{target}' the same, disregarding tense, plurality, or minor inflections? Answer 'Yes' or 'No'."
+        {
+            "role": "user",
+            "content": f"Are the words '{prediction}' and '{target}' the same, disregarding tense, plurality, or minor inflections? Answer 'Yes' or 'No'.",
         },
     ]
     try:
@@ -181,11 +189,19 @@ def calculate_metrics(
         )
         for i in range(len(results))
     ]
-    
-    exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(is_correct)
-    synonym_accuracy = sum(is_correct[i]["synonym"] for i in range(len(is_correct))) / len(is_correct)
-    fuzzy_accuracy = sum(is_correct[i]["fuzzy"] for i in range(len(is_correct))) / len(is_correct)
-    judgellm_accuracy = sum(is_correct[i]["judgellm"] for i in range(len(is_correct))) / len(is_correct)
+
+    exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(
+        is_correct
+    )
+    synonym_accuracy = sum(
+        is_correct[i]["synonym"] for i in range(len(is_correct))
+    ) / len(is_correct)
+    fuzzy_accuracy = sum(is_correct[i]["fuzzy"] for i in range(len(is_correct))) / len(
+        is_correct
+    )
+    judgellm_accuracy = sum(
+        is_correct[i]["judgellm"] for i in range(len(is_correct))
+    ) / len(is_correct)
 
     return {
         "exact_accuracy": exact_accuracy,
@@ -255,7 +271,7 @@ def is_correct_topk(
         predictions: List of top-k predicted tokens/words
         target: The target word
         judgellm_model: Optional JudgeLLM model for fuzzy matching
-    Returns: 
+    Returns:
         exact_found: Whether the target was found in the top-k predictions (exact match)
         fuzzy_found: Whether the target was found in the top-k predictions (fuzzy match)
         judgellm_found: Whether the target was found in the top-k predictions (JudgeLLM match)
@@ -277,7 +293,7 @@ def is_correct_topk(
         if judgellm_model and not exact_found:
             if judge_llm_equivalence(pred, target, judgellm_model):
                 judgellm_found = True
-    
+
     return exact_found, fuzzy_found, judgellm_found
 
 
@@ -305,7 +321,11 @@ def calculate_topk_metrics(
         judgellm_hits = 0
         fuzzy_hits = 0
         for r in results:
-            preds = r["prediction"][:k] if isinstance(r["prediction"], list) else [r["prediction"]]
+            preds = (
+                r["prediction"][:k]
+                if isinstance(r["prediction"], list)
+                else [r["prediction"]]
+            )
             target = r["word"]
             ex, fz, judgellm = is_correct_topk(preds, target, judgellm_model)
             if ex:

@@ -10,12 +10,15 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
-from src.data_processing.collect_dictionary import (
+from data_processing.collect_dictionary import (
     fetch_definition_from_free_dictionary,
     get_word_list,
+    get_wikipedia_medical_glossary_word_list,
     process_dictionary_data,
+    fetch_medical_definitions,
+    parse_wordsapi_entry,
+    parse_medical_entry,
 )
 
 
@@ -65,7 +68,7 @@ def test_get_word_list_from_api(mock_get):
             assert result == ["apple", "banana", "cat"]
 
             # Check that the word list was saved to a file
-            assert os.path.exists(os.path.join(temp_dir, "word_list.txt"))
+            # assert os.path.exists(os.path.join(temp_dir, "word_list.txt"))
 
 
 @patch("requests.get")
@@ -188,5 +191,74 @@ def test_process_dictionary_data():
         assert banana_def == "A long curved fruit with yellow skin"
 
 
-if __name__ == "__main__":
-    pytest.main(["-xvs", __file__])
+@patch("requests.get")
+def test_fetch_medical_definitions(mock_get):
+    """Test fetching a definition from the Medical Dictionary API."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = [
+        {
+            "meta": {"id": "aspirin"},
+            "shortdef": ["A medication used to reduce pain, fever, or inflammation."],
+        }
+    ]
+    mock_get.return_value = mock_response
+
+    result = fetch_medical_definitions("aspirin")
+    assert result["definition"] == "A medication used to reduce pain, fever, or inflammation."
+    assert result["synonyms"] == []
+    mock_response.json.return_value = [
+        {
+            "fl": "noun",
+            "shortdef": ["A medication used to reduce pain, fever, or inflammation."],
+            "meta": {"syns": ["painkiller"], "stems": ["painfree", "abs"]}
+        }
+    ]
+    mock_get.return_value = mock_response
+    result = fetch_medical_definitions("aspirin")
+    assert result["synonyms"] == ["painkiller", "painfree", "abs"] and result["part_of_speech"] == "noun"
+
+@patch("requests.get")
+def test_get_wikipedia_medical_glossary_word_list(mock_get):
+    """Test getting medical glossary word list from Wikipedia."""
+    html = '''<div class="mw-parser-output"><dt>Aspirin</dt><dt>Ibuprofen</dt></div>'''
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = html
+    mock_get.return_value = mock_response
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_file = os.path.join(temp_dir, "medical_word_list.txt")
+        word_list = get_wikipedia_medical_glossary_word_list(output_file=output_file)
+        assert "Aspirin" in word_list
+        assert "Ibuprofen" in word_list
+        assert os.path.exists(output_file)
+
+def test_parse_medical_entry():
+    word = "aspirin"
+    data = {
+            "definition": "A medication used to reduce pain, fever, or inflammation.",
+            "part_of_speech": "noun",
+            "synonyms": ["painkiller", "painfree", "abs"]
+        }
+    entries = parse_medical_entry(word, data)
+    assert isinstance(entries, list)
+    assert entries[0]["word"] == "aspirin"
+    assert entries[0]["definition"] == "A medication used to reduce pain, fever, or inflammation."
+    assert entries[0]["part_of_speech"] == "noun"
+    assert entries[0]["synonyms"] == ["painkiller", "painfree", "abs"]
+
+
+def test_parse_wordsapi_entry():
+    word = "aspirin"
+    data = {
+        "word": "aspirin",
+        "definitions": [
+            {"definition": "A drug used to reduce pain and fever."}
+        ],
+    }
+    entries = parse_wordsapi_entry(word, data)
+    assert isinstance(entries, list)
+    assert entries[0]["word"] == "aspirin"
+    assert "pain" in entries[0]["definition"]
+

@@ -10,14 +10,24 @@ import json
 import os
 import random
 import time
+from typing import Any
 
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 import pandas as pd
 import requests
 from tqdm import tqdm
 
+load_dotenv()
+
+DICTIONARY_API_KEY = os.getenv("DICTIONARY_API_KEY")
+
 # Constants
 DEFAULT_OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
+)
+DEFAULT_MEDICAL_WORD_LIST_FILE = os.path.join(
+    DEFAULT_OUTPUT_DIR, "medical_word_list.txt"
 )
 DEFAULT_WORD_LIST_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "word_list.txt")
 DEFAULT_OUTPUT_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "dictionary_data.json")
@@ -25,6 +35,7 @@ DEFAULT_PROCESSED_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "processed_dictionary.
 
 # Free Dictionary API endpoint
 DICTIONARY_API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+MEDICAL_DICTIONARY_API_URL = "https://dictionaryapi.com/api/v3/references/medical/json"
 
 # WordsAPI (alternative, requires API key)
 WORDS_API_URL = "https://wordsapiv1.p.rapidapi.com/words/{word}/definitions"
@@ -32,6 +43,37 @@ WORDS_API_HEADERS = {
     "X-RapidAPI-Key": "",  # Add your API key here if using WordsAPI
     "X-RapidAPI-Host": "wordsapiv1.p.rapidapi.com",
 }
+
+
+def get_wikipedia_medical_glossary_word_list(
+    output_file: str = DEFAULT_MEDICAL_WORD_LIST_FILE,
+):
+    wiki_url = "https://en.wikipedia.org/wiki/Glossary_of_medicine"
+    HEADERS = {"User-Agent": "Mozilla/5.0"}
+
+    response = requests.get(wiki_url, headers=HEADERS)
+    if response.status_code != 200:
+        raise Exception(
+            f"Failed to load page {wiki_url} with status code {response.status_code}"
+        )
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    content_div = soup.find("div", {"class": "mw-parser-output"})
+
+    terms = []
+    for tag in content_div.find_all(["dt", "b"]):
+        term = tag.get_text(strip=True)
+        if term and len(term.split()) < 2 and term[0].isalpha():
+            terms.append(term)
+
+    word_list = sorted(set(terms))
+
+    # Save the word list for future use
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("\n".join(word_list))
+
+    return word_list
 
 
 def get_word_list(file_path: str | None = None, num_words: int = 1000) -> list[str]:
@@ -77,6 +119,42 @@ def get_word_list(file_path: str | None = None, num_words: int = 1000) -> list[s
         f.write("\n".join(word_list))
 
     return word_list
+
+
+def fetch_medical_definitions(word: str) -> dict[str, Any]:
+    """
+    Fetch medical definitions for a word from the Medical Dictionary API.
+
+    Args:
+        word: The word to fetch the definition for
+
+    Returns:
+        Dictionary containing the word's definitions and metadata
+    """
+
+    url = f"{MEDICAL_DICTIONARY_API_URL}/{word}?key={DICTIONARY_API_KEY}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+            entry = data[0]
+            definition = entry.get("shortdef", [""])[0]
+            part_of_speech = entry.get("fl", "")
+            synonyms = entry.get("meta", {}).get("syns", [])
+            synonyms.extend(entry.get("meta", {}).get("stems", []))
+            # Synonyms may appear under 'meta' > 'syns' (not always present)
+            if "meta" in entry and "syns" in entry["meta"]:
+                for syn_group in entry["meta"]["syns"]:
+                    synonyms.extend(syn_group)
+
+            return {
+                "definition": definition,
+                "part_of_speech": part_of_speech,
+                "synonyms": synonyms,
+            }
+    else:
+        print(f"Failed to fetch {word}: status code {response.status_code}")
+        return {}
 
 
 def fetch_definition_from_free_dictionary(word: str) -> dict:
@@ -144,6 +222,8 @@ def collect_dictionary_data(
         delay: Delay between API requests to avoid rate limiting
     """
     if max_words:
+        random.seed(42)
+        random.shuffle(word_list)
         word_list = word_list[:max_words]
 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -167,21 +247,100 @@ def collect_dictionary_data(
     print(f"Fetching definitions for {len(new_words)} new words...")
 
     for word in tqdm(new_words):
-        if api == "free_dictionary":
-            definition_data = fetch_definition_from_free_dictionary(word)
-        else:  # words_api
-            definition_data = fetch_definition_from_words_api(word)
+        try:
+            if api == "free_dictionary":
+                definition_data = fetch_definition_from_free_dictionary(word)
+            elif api == "medical":
+                definition_data = fetch_medical_definitions(word)
+            else:  # words_api
+                definition_data = fetch_definition_from_words_api(word)
 
-        existing_data[word] = definition_data
-
-        # Save after each word to avoid losing data if interrupted
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(existing_data, f, indent=2)
+            if definition_data:
+                existing_data[word] = definition_data
+        except Exception as e:
+            print(f"Failed to fetch definition for '{word}': {str(e)}")
 
         # Add delay to avoid rate limiting
         time.sleep(delay)
 
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(existing_data, f, indent=2)
+
     print(f"Dictionary data collected and saved to {output_file}")
+
+
+def parse_medical_entry(
+    word, data, min_definition_length=10, max_definition_length=200
+):
+    if isinstance(data, dict) and "definition" in data:
+        definition = data["definition"].strip()
+        if min_definition_length <= len(definition) <= max_definition_length:
+            return [
+                {
+                    "word": word,
+                    "definition": definition,
+                    "part_of_speech": data.get("part_of_speech", ""),
+                    "synonyms": data.get("synonyms", []),
+                    "antonyms": data.get("antonyms", []),
+                }
+            ]
+    return []
+
+
+def parse_free_dictionary_entry(
+    word, data, min_definition_length=10, max_definition_length=200
+):
+    entries = []
+    if isinstance(data, list):
+        for entry in data:
+            if "meanings" in entry:
+                for meaning in entry["meanings"]:
+                    if "definitions" in meaning:
+                        for definition_item in meaning["definitions"]:
+                            if "definition" in definition_item:
+                                definition = definition_item["definition"].strip()
+                                if (
+                                    min_definition_length
+                                    <= len(definition)
+                                    <= max_definition_length
+                                ):
+                                    entries.append(
+                                        {
+                                            "word": word,
+                                            "definition": definition,
+                                            "part_of_speech": meaning.get(
+                                                "partOfSpeech", ""
+                                            ),
+                                            "synonyms": definition_item.get(
+                                                "synonyms", []
+                                            ),
+                                            "antonyms": definition_item.get(
+                                                "antonyms", []
+                                            ),
+                                        }
+                                    )
+    return entries
+
+
+def parse_wordsapi_entry(
+    word, data, min_definition_length=10, max_definition_length=200
+):
+    entries = []
+    if isinstance(data, dict) and "definitions" in data:
+        for definition_item in data["definitions"]:
+            if "definition" in definition_item:
+                definition = definition_item["definition"].strip()
+                if min_definition_length <= len(definition) <= max_definition_length:
+                    entries.append(
+                        {
+                            "word": word,
+                            "definition": definition,
+                            "part_of_speech": definition_item.get("partOfSpeech", ""),
+                            "synonyms": [],  # WordsAPI format may differ
+                            "antonyms": [],
+                        }
+                    )
+    return entries
 
 
 def process_dictionary_data(
@@ -189,6 +348,7 @@ def process_dictionary_data(
     output_file: str = DEFAULT_PROCESSED_FILE,
     min_definition_length: int = 10,
     max_definition_length: int = 200,
+    api: str = "free_dictionary",
 ) -> None:
     """
     Process raw dictionary data into a format suitable for LLM evaluation.
@@ -198,6 +358,7 @@ def process_dictionary_data(
         output_file: Path to save the processed data
         min_definition_length: Minimum length of definitions to include
         max_definition_length: Maximum length of definitions to include
+        api: API to use for fetching definitions
     """
     if not os.path.exists(input_file):
         print(f"Input file {input_file} does not exist")
@@ -207,67 +368,29 @@ def process_dictionary_data(
         raw_data = json.load(f)
 
     processed_data = []
-
     for word, data in raw_data.items():
         # Skip entries with errors
         if isinstance(data, dict) and "error" in data:
             continue
 
-        # Process data from Free Dictionary API
-        if isinstance(data, list):
-            for entry in data:
-                if "meanings" in entry:
-                    for meaning in entry["meanings"]:
-                        if "definitions" in meaning:
-                            for definition_item in meaning["definitions"]:
-                                if "definition" in definition_item:
-                                    definition = definition_item["definition"].strip()
-
-                                    # Filter by definition length
-                                    if (
-                                        min_definition_length
-                                        <= len(definition)
-                                        <= max_definition_length
-                                    ):
-                                        processed_data.append(
-                                            {
-                                                "word": word,
-                                                "definition": definition,
-                                                "part_of_speech": meaning.get(
-                                                    "partOfSpeech", ""
-                                                ),
-                                                "synonyms": definition_item.get(
-                                                    "synonyms", []
-                                                ),
-                                                "antonyms": definition_item.get(
-                                                    "antonyms", []
-                                                ),
-                                            }
-                                        )
-
-        # Process data from WordsAPI
-        elif isinstance(data, dict) and "definitions" in data:
-            for definition_item in data["definitions"]:
-                if "definition" in definition_item:
-                    definition = definition_item["definition"].strip()
-
-                    # Filter by definition length
-                    if (
-                        min_definition_length
-                        <= len(definition)
-                        <= max_definition_length
-                    ):
-                        processed_data.append(
-                            {
-                                "word": word,
-                                "definition": definition,
-                                "part_of_speech": definition_item.get(
-                                    "partOfSpeech", ""
-                                ),
-                                "synonyms": [],  # WordsAPI format may differ
-                                "antonyms": [],
-                            }
-                        )
+        if api == "medical":
+            processed_data.extend(
+                parse_medical_entry(
+                    word, data, min_definition_length, max_definition_length
+                )
+            )
+        elif api == "free_dictionary":
+            processed_data.extend(
+                parse_free_dictionary_entry(
+                    word, data, min_definition_length, max_definition_length
+                )
+            )
+        else:
+            processed_data.extend(
+                parse_wordsapi_entry(
+                    word, data, min_definition_length, max_definition_length
+                )
+            )
 
     # Convert to DataFrame and save
     df = pd.DataFrame(processed_data)
@@ -299,12 +422,12 @@ def main():
     parser.add_argument(
         "--api",
         type=str,
-        choices=["free_dictionary", "words_api"],
-        default="free_dictionary",
+        choices=["free_dictionary", "words_api", "medical"],
+        default="medical",
         help="API to use for fetching definitions",
     )
     parser.add_argument(
-        "--max-words", type=int, help="Maximum number of words to process"
+        "--max-words", type=int, help="Maximum number of words to process", default=10
     )
     parser.add_argument(
         "--delay", type=float, default=0.5, help="Delay between API requests"
@@ -335,7 +458,10 @@ def main():
 
     if not args.skip_collection:
         # Get word list
-        word_list = get_word_list(args.word_list, args.num_words)
+        if args.api == "medical":
+            word_list = get_wikipedia_medical_glossary_word_list()
+        else:
+            word_list = get_word_list(args.word_list, args.num_words)
 
         # Collect dictionary data
         collect_dictionary_data(
@@ -352,8 +478,10 @@ def main():
         output_file=processed_file,
         min_definition_length=args.min_definition_length,
         max_definition_length=args.max_definition_length,
+        api=args.api,
     )
 
 
 if __name__ == "__main__":
     main()
+    # get_wikipedia_medical_glossary_word_list()

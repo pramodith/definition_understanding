@@ -10,7 +10,7 @@ import os
 
 import litellm
 from litellm import acompletion, batch_completion
-from typing import Optional
+
 
 class LLMModel:
     """Base class for LLM interfaces using LiteLLM."""
@@ -22,7 +22,7 @@ class LLMModel:
         temperature: float = 0.0,
         max_tokens: int = 50,
         logprobs: bool = False,
-        top_logprobs: Optional[int] = None,
+        top_logprobs: int | None = None,
         **kwargs,
     ):
         """
@@ -129,7 +129,9 @@ class LLMModel:
             print(f"Error generating async response from {self.model_name}: {e}")
             return [f"Error: {str(e)}"]
 
-    def batch_generate(self, prompts_messages: list[list[dict[str, str]]]) -> list[list[str]]:
+    def batch_generate(
+        self, prompts_messages: list[list[dict[str, str]]]
+    ) -> list[list[str]]:
         """
         Generate responses for multiple prompts in a batch using LiteLLM and extract top-k predicted tokens.
 

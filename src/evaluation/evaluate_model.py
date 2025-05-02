@@ -19,7 +19,7 @@ from evaluation.metrics import (
     save_evaluation_results,
 )
 from models.model_factory import get_model
-from typing import Optional
+
 
 def create_prompt(definition: str, part_of_speech: str | None = None) -> str:
     """
@@ -67,7 +67,7 @@ async def evaluate_model_async(
     num_samples: int | None = None,
     verbose: bool = False,
     batch_size: int = 5,
-    top_logprobs: Optional[int] = None,
+    top_logprobs: int | None = None,
 ) -> dict[str, float]:
     """
     Evaluate an LLM's performance on word definition understanding using async batch processing.
@@ -163,7 +163,8 @@ async def evaluate_model_async(
             print(f"Predictions: {prediction_list}")
             # Show if any top-k prediction matches
             correct = any(
-                p.lower() == words[i].lower() or p.lower() in [s.lower() for s in all_synonyms[i]]
+                p.lower() == words[i].lower()
+                or p.lower() in [s.lower() for s in all_synonyms[i]]
                 for p in prediction_list
             )
             print(f"Correct (any top-k): {correct}")
@@ -171,7 +172,9 @@ async def evaluate_model_async(
 
     # Calculate metrics
     metrics = calculate_metrics(results, judgellm_model)
-    topk_metrics = calculate_topk_metrics(results, topk_list=[1, 3, 5], judgellm_model=judgellm_model)
+    topk_metrics = calculate_topk_metrics(
+        results, topk_list=[1, 3, 5], judgellm_model=judgellm_model
+    )
     metrics.update(topk_metrics)
 
     # Analyze results by category
@@ -203,7 +206,7 @@ def evaluate_model(
     num_samples: int | None = None,
     verbose: bool = False,
     batch_size: int = 20,
-    top_logprobs: Optional[int] = None,
+    top_logprobs: int | None = None,
 ) -> dict[str, float]:
     """
     Evaluate an LLM's performance on word definition understanding.
