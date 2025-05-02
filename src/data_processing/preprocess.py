@@ -21,6 +21,7 @@ def clean_definition(definition: str) -> str:
     Returns:
         Cleaned definition
     """
+    common_stop_tokens = ["<|eot_id|>", "</s>"]
     # Remove any references like "[1]" often found in dictionary entries
     definition = re.sub(r"\[\d+\]", "", definition)
 
@@ -28,7 +29,9 @@ def clean_definition(definition: str) -> str:
     definition = re.sub(r"\([^)]*\)", "", definition)
 
     # Normalize whitespace
-    definition = re.sub(r"\s+", " ", definition).strip()
+    definition = re.sub(r"\s+", " ", definition).strip().strip()
+    for stop_token in common_stop_tokens:
+        definition = definition.replace(stop_token, "")
 
     return definition
 

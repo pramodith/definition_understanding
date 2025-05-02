@@ -121,7 +121,7 @@ def get_word_list(file_path: str | None = None, num_words: int = 1000) -> list[s
     return word_list
 
 
-def fetch_medical_definitions(word: str) -> dict[str, Any]:
+def fetch_medical_definitions(word: str) -> list[dict[str, Any]]:
     """
     Fetch medical definitions for a word from the Medical Dictionary API.
 
@@ -134,27 +134,29 @@ def fetch_medical_definitions(word: str) -> dict[str, Any]:
 
     url = f"{MEDICAL_DICTIONARY_API_URL}/{word}?key={DICTIONARY_API_KEY}"
     response = requests.get(url)
+    results = []
     if response.status_code == 200:
         data = response.json()
         if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
-            entry = data[0]
-            definition = entry.get("shortdef", [""])[0]
-            part_of_speech = entry.get("fl", "")
-            synonyms = entry.get("meta", {}).get("syns", [])
-            synonyms.extend(entry.get("meta", {}).get("stems", []))
-            # Synonyms may appear under 'meta' > 'syns' (not always present)
-            if "meta" in entry and "syns" in entry["meta"]:
-                for syn_group in entry["meta"]["syns"]:
-                    synonyms.extend(syn_group)
+            for entry in data:
+                definition = entry.get("shortdef", [""])[0]
+                part_of_speech = entry.get("fl", "")
+                synonyms = entry.get("meta", {}).get("syns", [])
+                synonyms.extend(entry.get("meta", {}).get("stems", []))
+                # Synonyms may appear under 'meta' > 'syns' (not always present)
+                if "meta" in entry and "syns" in entry["meta"]:
+                    for syn_group in entry["meta"]["syns"]:
+                        synonyms.extend(syn_group)
 
-            return {
-                "definition": definition,
-                "part_of_speech": part_of_speech,
-                "synonyms": synonyms,
-            }
+                results.append({
+                    "definition": definition,
+                    "part_of_speech": part_of_speech,
+                    "synonyms": synonyms,
+                })
+        return results
     else:
         print(f"Failed to fetch {word}: status code {response.status_code}")
-        return {}
+        return results
 
 
 def fetch_definition_from_free_dictionary(word: str) -> dict:
@@ -272,23 +274,22 @@ def collect_dictionary_data(
 def parse_medical_entry(
     word, data, min_definition_length=10, max_definition_length=200
 ):
-    if isinstance(data, dict) and "definition" in data:
-        definition = data["definition"].strip()
-        if min_definition_length <= len(definition) <= max_definition_length:
-            return [
-                {
+    results = []
+    for entry in data:
+        if isinstance(entry, dict) and "definition" in entry:
+            definition = entry["definition"].strip()
+            if min_definition_length <= len(definition) <= max_definition_length:
+                results.append({
                     "word": word,
                     "definition": definition,
-                    "part_of_speech": data.get("part_of_speech", ""),
-                    "synonyms": data.get("synonyms", []),
-                    "antonyms": data.get("antonyms", []),
-                }
-            ]
-    return []
+                    "part_of_speech": entry.get("part_of_speech", ""),
+                    "synonyms": entry.get("synonyms", []),
+                })
+    return results
 
 
 def parse_free_dictionary_entry(
-    word, data, min_definition_length=10, max_definition_length=200
+    word, data, min_definition_length=10, max_definition_length=1000
 ):
     entries = []
     if isinstance(data, list):
@@ -427,7 +428,7 @@ def main():
         help="API to use for fetching definitions",
     )
     parser.add_argument(
-        "--max-words", type=int, help="Maximum number of words to process", default=10
+        "--max-words", type=int, help="Maximum number of words to process", default=500
     )
     parser.add_argument(
         "--delay", type=float, default=0.5, help="Delay between API requests"
@@ -459,7 +460,11 @@ def main():
     if not args.skip_collection:
         # Get word list
         if args.api == "medical":
-            word_list = get_wikipedia_medical_glossary_word_list()
+            word_list = pd.read_csv(DEFAULT_MEDICAL_WORD_LIST_FILE, header=None, sep="\t")
+            word_list.columns = ["word"]
+            word_list = word_list.drop_duplicates().dropna()
+            word_list = word_list[word_list["word"].str.isalpha()]
+            word_list = word_list["word"].tolist()
         else:
             word_list = get_word_list(args.word_list, args.num_words)
 

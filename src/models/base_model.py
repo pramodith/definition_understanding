@@ -6,7 +6,6 @@ to various LLM providers through LiteLLM.
 """
 
 import asyncio
-import os
 
 import litellm
 from litellm import acompletion, batch_completion
@@ -37,18 +36,6 @@ class LLMModel:
             **kwargs: Additional model-specific parameters
         """
         self.model_name = model_name
-
-        # Set API key if provided or get from environment
-        if api_key:
-            # Set the appropriate environment variable based on the model provider
-            if "openai" in model_name.lower():
-                os.environ["OPENAI_API_KEY"] = api_key
-            elif "anthropic" in model_name.lower():
-                os.environ["ANTHROPIC_API_KEY"] = api_key
-            elif "together" in model_name.lower():
-                os.environ["TOGETHER_API_KEY"] = api_key
-            # Add more providers as needed
-
         # Store generation parameters
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -61,12 +48,21 @@ class LLMModel:
         Helper to extract top-k tokens from a LiteLLM choice logprobs dict.
         Returns a list of top-k tokens (best guess first) or an empty list if not available.
         """
-        topk_tokens = ["" for _ in range(self.top_logprobs)]
-        if hasattr(choice, "logprobs") and choice.logprobs:
-            for content in choice.logprobs.content:
-                top_logprobs = content["top_logprobs"]
-                for ind, t in enumerate(top_logprobs):
-                    topk_tokens[ind] += t.token
+        try:
+            if hasattr(choice, "logprobs") and choice.logprobs:
+                topk_tokens = ["" for _ in range(self.top_logprobs)]
+                if not hasattr(choice.logprobs, "content"):    
+                    for content in choice.logprobs.content:
+                        top_logprobs = content["top_logprobs"]
+                        for ind, t in enumerate(top_logprobs):
+                            topk_tokens[ind] += t.token
+                else:
+                    for i in range(len(choice.logprobs.top_logprobs)):
+                        for ind, (key, value) in enumerate(choice.logprobs.top_logprobs[i].items()):
+                            topk_tokens[ind] += key
+        except Exception as e:
+            print(f"Error extracting top-k tokens from logprobs: {e}")
+            return []
 
         return topk_tokens
 
@@ -95,7 +91,7 @@ class LLMModel:
                 topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
             else:
                 topk_tokens = [choice.message.content.strip()]
-            return [choice.message.content.strip()]
+            return topk_tokens
         except Exception as e:
             print(f"Error generating response from {self.model_name}: {e}")
             return [f"Error: {str(e)}"]
@@ -127,6 +123,7 @@ class LLMModel:
             return topk_tokens
         except Exception as e:
             print(f"Error generating async response from {self.model_name}: {e}")
+            print(response)
             return [f"Error: {str(e)}"]
 
     def batch_generate(

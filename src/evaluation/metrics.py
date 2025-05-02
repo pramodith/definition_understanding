@@ -23,9 +23,11 @@ def normalize_word(word: str) -> str:
     Returns:
         Normalized word
     """
+    stop_tokens = ["<|eot_id|>", "</s>"]
     # Convert to lowercase
     word = word.lower()
-
+    for stop_token in stop_tokens:
+        word = word.replace(stop_token, "")
     # Remove punctuation and special characters
     word = re.sub(r"[^\w\s]", "", word)
 
@@ -85,25 +87,30 @@ def is_correct_answer(
     return is_correct
 
 
-def judge_llm_equivalence(prediction: str, target: str, llm_model: LLMModel) -> bool:
+def judge_llm_equivalence(prediction: str, target: str, definition: str, llm_model: LLMModel) -> bool:
     """
-    Uses an LLM to judge if two words are equivalent (ignoring tense, plurality, etc).
-    Returns True if the LLM says they are equivalent.
+    Uses an LLM to judge if two words are equivalent or synonymous (ignoring tense, plurality, etc).
+    Returns True if the LLM says they are equivalent or synonymous.
     """
     examples = """## Examples
-    Are the words 'run' and 'ran' the same, disregarding tense, plurality, or minor inflections? Yes
-    Are the words 'run' and 'running' the same, disregarding tense, plurality, or minor inflections? Yes
-    Are the words 'goal' and 'goalie' the same, disregarding tense, plurality, or minor inflections? No
+    Definition: Bleeding from the nose, usually due to ruptured blood vessels in the nasal mucosa.
+    Are the words 'Epistaxis' and 'Nosebleed' the same or synonymous? Yes
+    Definition: The largest part of the brain, responsible for higher brain functions like thought, action, and sensory processing.
+    Are the words 'Cerebrum' and 'Forebrain' the same or synonymous? Yes
+    Definition: An elevated body temperature, often due to infection or illness.
+    Are the words 'Fever' and 'diarrhea' the same or synonymous? No
     """
     prompt = [
         {
             "role": "system",
-            "content": "You are an expert linguist. You will judge if two words are the same, disregarding tense, plurality, or minor inflections.\n\n"
+            "content": "You are an expert linguist. "\
+            "You will judge if two words are the same or synonymous given a definition. Respond with a single word: 'Yes' or 'No'.\n\n"
             + examples,
         },
         {
             "role": "user",
-            "content": f"Are the words '{prediction}' and '{target}' the same, disregarding tense, plurality, or minor inflections? Answer 'Yes' or 'No'.",
+            "content": f"Definition: {definition}"\
+                f" Are the words '{prediction}' and '{target}' the same or synonymous?",
         },
     ]
     try:
@@ -286,12 +293,13 @@ def is_correct_topk(
         # Exact match or synonym
         if pred_norm == target_norm:
             exact_found = True
+            judgellm_found = True
         # Fuzzy match
         if pred_norm in target_norm or target_norm in pred_norm:
             fuzzy_found = True
         # JudgeLLM
         if judgellm_model and not exact_found:
-            if judge_llm_equivalence(pred, target, judgellm_model):
+            if judge_llm_equivalence(pred_norm, target_norm, judgellm_model):
                 judgellm_found = True
 
     return exact_found, fuzzy_found, judgellm_found

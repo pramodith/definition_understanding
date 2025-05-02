@@ -62,6 +62,7 @@ def create_prompt(definition: str, part_of_speech: str | None = None) -> str:
 
 async def evaluate_model_async(
     model_name: str,
+    judgellm_model_name: str,
     dataset_path: str,
     output_dir: str,
     num_samples: int | None = None,
@@ -74,6 +75,7 @@ async def evaluate_model_async(
 
     Args:
         model_name: Name of the LLM to evaluate
+        judgellm_model_name: Name of the Judgellm model to evaluate
         dataset_path: Path to the dataset of word definitions
         output_dir: Directory to save evaluation results
         num_samples: Number of samples to evaluate (None for all)
@@ -81,6 +83,7 @@ async def evaluate_model_async(
         fuzzy_match: Whether to allow fuzzy matching
         verbose: Whether to print detailed information
         batch_size: Number of prompts to process in each batch
+        top_logprobs: Number of top log-probabilities to return
 
     Returns:
         Dictionary of evaluation metrics
@@ -94,7 +97,7 @@ async def evaluate_model_async(
 
     # Get model
     model = get_model(model_name, logprobs=True, top_logprobs=top_logprobs)
-    judgellm_model = get_model(model_name)
+    judgellm_model = get_model(judgellm_model_name)
 
     print(
         f"Evaluating {model_name} on {len(df)} samples using async batch processing..."
@@ -182,6 +185,7 @@ async def evaluate_model_async(
 
     # Save results
     os.makedirs(output_dir, exist_ok=True)
+    model_name = model_name.split("/")[-1]
     output_file = os.path.join(output_dir, f"{model_name}_evaluation_results.json")
     save_evaluation_results(results, metrics, category_metrics, output_file)
 
@@ -201,6 +205,7 @@ async def evaluate_model_async(
 
 def evaluate_model(
     model_name: str,
+    judgellm_model_name: str,
     dataset_path: str,
     output_dir: str,
     num_samples: int | None = None,
@@ -214,6 +219,7 @@ def evaluate_model(
 
     Args:
         model_name: Name of the LLM to evaluate
+        judgellm_model_name: Name of the Judgellm model to evaluate
         dataset_path: Path to the dataset of word definitions
         output_dir: Directory to save evaluation results
         num_samples: Number of samples to evaluate (None for all)
@@ -228,6 +234,7 @@ def evaluate_model(
     return asyncio.run(
         evaluate_model_async(
             model_name=model_name,
+            judgellm_model_name=judgellm_model_name,
             dataset_path=dataset_path,
             output_dir=output_dir,
             num_samples=num_samples,
@@ -248,6 +255,13 @@ def main():
         type=str,
         required=False,
         help="Name of the model to evaluate",
+        default="meta-llama/Llama-3.2-3B-Instruct-Turbo",
+    )
+    parser.add_argument(
+        "--judgellm_model_name",
+        type=str,
+        required=False,
+        help="Name of the Judgellm model to evaluate",
         default="gpt-4o-mini",
     )
     parser.add_argument(
@@ -291,6 +305,7 @@ def main():
 
     evaluate_model(
         model_name=args.model,
+        judgellm_model_name=args.judgellm_model_name,
         dataset_path=args.dataset,
         output_dir=args.output_dir,
         num_samples=args.num_samples,

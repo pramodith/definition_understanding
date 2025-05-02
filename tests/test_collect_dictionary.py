@@ -198,15 +198,17 @@ def test_fetch_medical_definitions(mock_get):
     mock_response.status_code = 200
     mock_response.json.return_value = [
         {
-            "meta": {"id": "aspirin"},
             "shortdef": ["A medication used to reduce pain, fever, or inflammation."],
         }
     ]
     mock_get.return_value = mock_response
 
     result = fetch_medical_definitions("aspirin")
-    assert result["definition"] == "A medication used to reduce pain, fever, or inflammation."
-    assert result["synonyms"] == []
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["definition"] == "A medication used to reduce pain, fever, or inflammation."
+    assert result[0]["synonyms"] == []
+
     mock_response.json.return_value = [
         {
             "fl": "noun",
@@ -216,7 +218,9 @@ def test_fetch_medical_definitions(mock_get):
     ]
     mock_get.return_value = mock_response
     result = fetch_medical_definitions("aspirin")
-    assert result["synonyms"] == ["painkiller", "painfree", "abs"] and result["part_of_speech"] == "noun"
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["synonyms"] == ["painkiller", "painfree", "abs"] and result[0]["part_of_speech"] == "noun"
 
 @patch("requests.get")
 def test_get_wikipedia_medical_glossary_word_list(mock_get):
@@ -236,13 +240,16 @@ def test_get_wikipedia_medical_glossary_word_list(mock_get):
 
 def test_parse_medical_entry():
     word = "aspirin"
-    data = {
+    data = [
+        {
             "definition": "A medication used to reduce pain, fever, or inflammation.",
             "part_of_speech": "noun",
             "synonyms": ["painkiller", "painfree", "abs"]
         }
+    ]
     entries = parse_medical_entry(word, data)
     assert isinstance(entries, list)
+    assert len(entries) == 1
     assert entries[0]["word"] == "aspirin"
     assert entries[0]["definition"] == "A medication used to reduce pain, fever, or inflammation."
     assert entries[0]["part_of_speech"] == "noun"
