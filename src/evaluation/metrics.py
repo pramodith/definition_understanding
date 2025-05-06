@@ -40,6 +40,7 @@ def normalize_word(word: str) -> str:
 def is_correct_answer(
     prediction: str | list[str],
     target: str,
+    definition: str,
     synonyms: list[str] | None = None,
     judgellm_model: LLMModel | None = None,
 ) -> dict[str, bool]:
@@ -49,6 +50,7 @@ def is_correct_answer(
     Args:
         prediction: The predicted word(s)
         target: The target word
+        definition: The definition of the target word
         synonyms: List of acceptable synonyms
         judgellm_model: Optional LLMModel instance for JudgeLLM
 
@@ -81,7 +83,7 @@ def is_correct_answer(
     # If none are True, call JudgeLLM if provided
     if not is_correct["exact"] and judgellm_model:
         for pred in preds:
-            if judge_llm_equivalence(pred, target, judgellm_model):
+            if judge_llm_equivalence(pred, target, definition, judgellm_model):
                 is_correct["judgellm"] = True
                 break
     return is_correct
@@ -183,6 +185,7 @@ def calculate_metrics(
     for result in results:
         target = result["word"]
         prediction = result["prediction"][0]
+        definition = result["definition"]
         y_true.append(target)
         y_pred.append(prediction)
 
@@ -191,6 +194,7 @@ def calculate_metrics(
         is_correct_answer(
             prediction=results[i]["prediction"][0],
             target=results[i]["word"],
+            definition=results[i]["definition"],
             synonyms=results[i].get("synonyms", []),
             judgellm_model=judgellm_model,
         )
@@ -270,6 +274,7 @@ def analyze_results_by_category(
 def is_correct_topk(
     predictions: list[str],
     target: str,
+    definition: str,
     judgellm_model: LLMModel | None = None,
 ) -> tuple[bool, bool, bool]:
     """
@@ -277,6 +282,7 @@ def is_correct_topk(
     Args:
         predictions: List of top-k predicted tokens/words
         target: The target word
+        definition: The definition of the target word
         judgellm_model: Optional JudgeLLM model for fuzzy matching
     Returns:
         exact_found: Whether the target was found in the top-k predictions (exact match)
@@ -299,7 +305,7 @@ def is_correct_topk(
             fuzzy_found = True
         # JudgeLLM
         if judgellm_model and not exact_found:
-            if judge_llm_equivalence(pred_norm, target_norm, judgellm_model):
+            if judge_llm_equivalence(pred_norm, target_norm, definition, judgellm_model):
                 judgellm_found = True
 
     return exact_found, fuzzy_found, judgellm_found
@@ -335,7 +341,8 @@ def calculate_topk_metrics(
                 else [r["prediction"]]
             )
             target = r["word"]
-            ex, fz, judgellm = is_correct_topk(preds, target, judgellm_model)
+            definition = r["definition"]
+            ex, fz, judgellm = is_correct_topk(preds, target, definition, judgellm_model)
             if ex:
                 exact_hits += 1
             if fz:
