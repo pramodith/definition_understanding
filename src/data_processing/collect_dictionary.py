@@ -272,7 +272,7 @@ def collect_dictionary_data(
 
 
 def parse_medical_entry(
-    word, data, min_definition_length=10, max_definition_length=200
+    word, data, min_definition_length=50, max_definition_length=200
 ):
     results = []
     for entry in data:
@@ -347,8 +347,8 @@ def parse_wordsapi_entry(
 def process_dictionary_data(
     input_file: str = DEFAULT_OUTPUT_FILE,
     output_file: str = DEFAULT_PROCESSED_FILE,
-    min_definition_length: int = 10,
-    max_definition_length: int = 200,
+    min_definition_length: int = 50,
+    max_definition_length: int = 1000,
     api: str = "free_dictionary",
 ) -> None:
     """
@@ -411,7 +411,7 @@ def main():
     parser.add_argument(
         "--num-words",
         type=int,
-        default=1000,
+        default=2000,
         help="Number of words to fetch if downloading",
     )
     parser.add_argument(
@@ -428,7 +428,7 @@ def main():
         help="API to use for fetching definitions",
     )
     parser.add_argument(
-        "--max-words", type=int, help="Maximum number of words to process", default=500
+        "--max-words", type=int, help="Maximum number of words to process", default=350
     )
     parser.add_argument(
         "--delay", type=float, default=0.5, help="Delay between API requests"
@@ -441,13 +441,13 @@ def main():
     parser.add_argument(
         "--min-definition-length",
         type=int,
-        default=10,
+        default=50,
         help="Minimum length of definitions to include",
     )
     parser.add_argument(
         "--max-definition-length",
         type=int,
-        default=200,
+        default=1000,
         help="Maximum length of definitions to include",
     )
 

@@ -42,6 +42,8 @@ class LLMModel:
         self.logprobs = logprobs
         self.top_logprobs = top_logprobs
         self.kwargs = kwargs
+        # The lower this value the more likely we get greedy sampling
+        self.top_p = 0.001
 
     def _extract_topk_tokens_from_logprobs(self, choice) -> list[str]:
         """
@@ -84,6 +86,7 @@ class LLMModel:
                 max_tokens=self.max_tokens,
                 logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
+                top_p = self.top_p,
                 **self.kwargs,
             )
             choice = response.choices[0]
@@ -114,6 +117,7 @@ class LLMModel:
                 max_tokens=self.max_tokens,
                 logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
+                top_p = self.top_p,
                 **self.kwargs,
             )
             choice = response.choices[0]
@@ -147,6 +151,7 @@ class LLMModel:
                 max_tokens=self.max_tokens,
                 logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
+                top_p = self.top_p,
                 **self.kwargs,
             )
             results = []
