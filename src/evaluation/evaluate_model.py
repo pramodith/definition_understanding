@@ -12,7 +12,7 @@ import os
 
 import pandas as pd
 
-from evaluation.metrics import (
+from metrics import (
     analyze_results_by_category,
     calculate_metrics,
     calculate_topk_metrics,
@@ -69,6 +69,7 @@ async def evaluate_model_async(
     verbose: bool = False,
     batch_size: int = 5,
     top_logprobs: int | None = None,
+    is_local: bool = True,
 ) -> dict[str, float]:
     """
     Evaluate an LLM's performance on word definition understanding using async batch processing.
@@ -84,6 +85,7 @@ async def evaluate_model_async(
         verbose: Whether to print detailed information
         batch_size: Number of prompts to process in each batch
         top_logprobs: Number of top log-probabilities to return
+        is_local: Whether to use a local inference engine
 
     Returns:
         Dictionary of evaluation metrics
@@ -96,8 +98,8 @@ async def evaluate_model_async(
         df = df.sample(num_samples, random_state=42)
 
     # Get model
-    model = get_model(model_name, logprobs=True, top_logprobs=top_logprobs)
-    judgellm_model = get_model(judgellm_model_name)
+    model = get_model(model_name, logprobs=True, top_logprobs=top_logprobs, is_local=is_local)
+    judgellm_model = get_model(judgellm_model_name, is_local=False)
 
     print(
         f"Evaluating {model_name} on {len(df)} samples using async batch processing..."
@@ -144,7 +146,10 @@ async def evaluate_model_async(
         prompts_messages.append(prompt_message)
 
     # Process all prompts in batches asynchronously
-    responses = await model.abatch_generate(prompts_messages, batch_size=batch_size)
+    if is_local:
+        responses = model.batch_generate(prompts_messages, batch_size=batch_size)
+    else:
+        responses = await model.abatch_generate(prompts_messages, batch_size=batch_size)
 
     # Process results
     results = []
@@ -212,6 +217,7 @@ def evaluate_model(
     verbose: bool = False,
     batch_size: int = 20,
     top_logprobs: int | None = None,
+    is_local: bool = True,
 ) -> dict[str, float]:
     """
     Evaluate an LLM's performance on word definition understanding.
@@ -226,11 +232,11 @@ def evaluate_model(
         verbose: Whether to print detailed information
         batch_size: Number of prompts to process in each batch
         top_logprobs: Number of top log-probabilities to return
+        is_local: Whether to use a local inference engine
 
     Returns:
         Dictionary of evaluation metrics.........
     """
-    # Run the async evaluation in the event loop
     return asyncio.run(
         evaluate_model_async(
             model_name=model_name,
@@ -241,9 +247,9 @@ def evaluate_model(
             verbose=verbose,
             batch_size=batch_size,
             top_logprobs=top_logprobs,
+            is_local=is_local
         )
     )
-
 
 def main():
     """Main function to run the evaluation."""
@@ -255,7 +261,14 @@ def main():
         type=str,
         required=False,
         help="Name of the model to evaluate",
-        default="meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        default="Qwen/Qwen2.5-1.5B-Instruct",
+    )
+    parser.add_argument(
+        "--is_local",
+        type=bool,
+        required=False,
+        help="A flag to indicate if a local inference engine is used",
+        default=True,
     )
     parser.add_argument(
         "--judgellm_model_name",

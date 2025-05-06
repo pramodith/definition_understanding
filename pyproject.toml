@@ -3,7 +3,7 @@ name = "definition-understanding"
 version = "0.1.0"
 description = "A project to evaluate how well LLMs understand word definitions"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "requests",
     "pandas",
