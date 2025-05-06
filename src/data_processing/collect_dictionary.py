@@ -121,20 +121,27 @@ def get_word_list(file_path: str | None = None, num_words: int = 1000) -> list[s
     return word_list
 
 
-def fetch_medical_definitions(word: str) -> list[dict[str, Any]]:
+def fetch_medical_definitions(
+    word: str, 
+    existing_data: dict[str, Any], 
+    delay: float = 0.5, 
+    max_words: int | None = None
+) -> dict[str, Any]:
     """
     Fetch medical definitions for a word from the Medical Dictionary API.
 
     Args:
         word: The word to fetch the definition for
+        existing_data: List of existing definitions for the word
+        delay: Delay between API requests to avoid rate limiting
+        max_words: Maximum number of words to process
 
     Returns:
         Dictionary containing the word's definitions and metadata
     """
-
     url = f"{MEDICAL_DICTIONARY_API_URL}/{word}?key={DICTIONARY_API_KEY}"
+    existing_data[word] = []
     response = requests.get(url)
-    results = []
     if response.status_code == 200:
         data = response.json()
         if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
@@ -148,15 +155,25 @@ def fetch_medical_definitions(word: str) -> list[dict[str, Any]]:
                     for syn_group in entry["meta"]["syns"]:
                         synonyms.extend(syn_group)
 
-                results.append({
+                existing_data[word].append({
                     "definition": definition,
                     "part_of_speech": part_of_speech,
                     "synonyms": synonyms,
                 })
-        return results
+                if max_words and len(existing_data) >= max_words:
+                    break
+        else:
+            suggested_words = data
+            for suggested_word in suggested_words:
+                if suggested_word not in existing_data:
+                    existing_data = fetch_medical_definitions(suggested_word, existing_data, delay, max_words)
+                    time.sleep(delay)
+                if max_words and len(existing_data) >= max_words:
+                    break
+        return existing_data
     else:
         print(f"Failed to fetch {word}: status code {response.status_code}")
-        return results
+        return existing_data
 
 
 def fetch_definition_from_free_dictionary(word: str) -> dict:
@@ -247,13 +264,16 @@ def collect_dictionary_data(
         return
 
     print(f"Fetching definitions for {len(new_words)} new words...")
-
+    definition_data = None
     for word in tqdm(new_words):
+        # Check if we have reached the maximum number of words
+        if max_words and len(existing_data) >= max_words:
+            break
         try:
             if api == "free_dictionary":
                 definition_data = fetch_definition_from_free_dictionary(word)
             elif api == "medical":
-                definition_data = fetch_medical_definitions(word)
+                existing_data = fetch_medical_definitions(word, existing_data, delay)
             else:  # words_api
                 definition_data = fetch_definition_from_words_api(word)
 
@@ -261,7 +281,7 @@ def collect_dictionary_data(
                 existing_data[word] = definition_data
         except Exception as e:
             print(f"Failed to fetch definition for '{word}': {str(e)}")
-
+        
         # Add delay to avoid rate limiting
         time.sleep(delay)
 
@@ -324,7 +344,7 @@ def parse_free_dictionary_entry(
 
 
 def parse_wordsapi_entry(
-    word, data, min_definition_length=10, max_definition_length=200
+    word, data, min_definition_length=50, max_definition_length=200
 ):
     entries = []
     if isinstance(data, dict) and "definitions" in data:
@@ -428,7 +448,7 @@ def main():
         help="API to use for fetching definitions",
     )
     parser.add_argument(
-        "--max-words", type=int, help="Maximum number of words to process", default=350
+        "--max-words", type=int, default=450, help="Maximum number of words to process"
     )
     parser.add_argument(
         "--delay", type=float, default=0.5, help="Delay between API requests"

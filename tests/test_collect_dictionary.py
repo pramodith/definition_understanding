@@ -203,11 +203,13 @@ def test_fetch_medical_definitions(mock_get):
     ]
     mock_get.return_value = mock_response
 
-    result = fetch_medical_definitions("aspirin")
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert result[0]["definition"] == "A medication used to reduce pain, fever, or inflammation."
-    assert result[0]["synonyms"] == []
+    existing_data = {}
+    result = fetch_medical_definitions("aspirin", existing_data)
+    assert isinstance(result, dict)
+    assert "aspirin" in result
+    assert isinstance(result["aspirin"], list)
+    assert result["aspirin"][0]["definition"] == "A medication used to reduce pain, fever, or inflammation."
+    assert result["aspirin"][0]["synonyms"] == []
 
     mock_response.json.return_value = [
         {
@@ -217,10 +219,12 @@ def test_fetch_medical_definitions(mock_get):
         }
     ]
     mock_get.return_value = mock_response
-    result = fetch_medical_definitions("aspirin")
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert result[0]["synonyms"] == ["painkiller", "painfree", "abs"] and result[0]["part_of_speech"] == "noun"
+    existing_data = {}
+    result = fetch_medical_definitions("aspirin", existing_data)
+    assert isinstance(result, dict)
+    assert "aspirin" in result
+    assert result["aspirin"][0]["synonyms"] == ["painkiller", "painfree", "abs"]
+    assert result["aspirin"][0]["part_of_speech"] == "noun"
 
 @patch("requests.get")
 def test_get_wikipedia_medical_glossary_word_list(mock_get):
