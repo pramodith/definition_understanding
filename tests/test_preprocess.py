@@ -10,7 +10,7 @@ import tempfile
 import pandas as pd
 import pytest
 
-from src.data_processing.preprocess import clean_definition, create_evaluation_dataset
+from data_processing.preprocess import clean_definition, create_evaluation_dataset
 
 
 def test_clean_definition():

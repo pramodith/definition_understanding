@@ -5,12 +5,11 @@ This module defines the VLLMModel class that provides an interface
 to run local models using vLLM for efficient inference.
 """
 
-from typing import List, Dict
-
 try:
-    import vllm
-    from vllm import SamplingParams, LLM
     from transformers import AutoTokenizer
+    import vllm
+    from vllm import LLM, SamplingParams
+
     VLLM_AVAILABLE = True
 except ImportError:
     VLLM_AVAILABLE = False
@@ -18,8 +17,10 @@ except ImportError:
 
 from models.base_model import LLMModel
 
+
 class VLLMModel(LLMModel):
     """Class for local LLM interfaces using vLLM."""
+
     def __init__(
         self,
         model_name: str,
@@ -48,14 +49,13 @@ class VLLMModel(LLMModel):
             model=self.model_name,
             tensor_parallel_size=self.tensor_parallel_size,
             gpu_memory_utilization=self.gpu_memory_utilization,
-            dtype='half'
+            dtype="half",
+            enable_prefix_caching=True,
         )
 
-    def _convert_messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
+    def _convert_messages_to_prompt(self, messages: list[dict[str, str]]) -> str:
         tokenized_messages = self.tokenizer.apply_chat_template(
-            messages, 
-            tokenize=False, 
-            add_generation_prompt=True
+            messages, tokenize=False, add_generation_prompt=True
         )
         return tokenized_messages
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     model = VLLMModel(model_name="Qwen/Qwen3-0.6B", temperature=0.0, max_tokens=50)
     prompt_messages = [
         {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "What is the capital of France?"}
+        {"role": "user", "content": "What is the capital of France?"},
     ]
     output = model.batch_generate([prompt_messages])
     print("Generated text:", output)

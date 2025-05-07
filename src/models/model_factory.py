@@ -9,7 +9,9 @@ from models.base_model import LLMModel
 from models.vllm_model import VLLMModel
 
 
-def get_model(model_name: str, api_key: str | None = None, is_local: bool = True, **kwargs) -> LLMModel:
+def get_model(
+    model_name: str, api_key: str | None = None, is_local: bool = True, **kwargs
+) -> LLMModel:
     """
     Get an instance of the specified model using LiteLLM.
 
@@ -47,7 +49,9 @@ def get_model(model_name: str, api_key: str | None = None, is_local: bool = True
         elif model_name.startswith("claude"):
             litellm_model_name = f"anthropic/{model_name}"
         # Together AI models for open-source models
-        elif any(name in model_name.lower() for name in ["meta-llama", "mistral", "qwen"]):
+        elif any(
+            name in model_name.lower() for name in ["meta-llama", "mistral", "qwen"]
+        ):
             litellm_model_name = f"together_ai/{model_name}"
 
         # Create and return the LLMModel instance

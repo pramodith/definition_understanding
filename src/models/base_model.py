@@ -53,14 +53,16 @@ class LLMModel:
         try:
             if hasattr(choice, "logprobs") and choice.logprobs:
                 topk_tokens = ["" for _ in range(self.top_logprobs)]
-                if not hasattr(choice.logprobs, "content"):    
+                if not hasattr(choice.logprobs, "content"):
                     for content in choice.logprobs.content:
                         top_logprobs = content["top_logprobs"]
                         for ind, t in enumerate(top_logprobs):
                             topk_tokens[ind] += t.token
                 else:
                     for i in range(len(choice.logprobs.top_logprobs)):
-                        for ind, (key, value) in enumerate(choice.logprobs.top_logprobs[i].items()):
+                        for ind, (key, _) in enumerate(
+                            choice.logprobs.top_logprobs[i].items()
+                        ):
                             topk_tokens[ind] += key
         except Exception as e:
             print(f"Error extracting top-k tokens from logprobs: {e}")
@@ -86,7 +88,7 @@ class LLMModel:
                 max_tokens=self.max_tokens,
                 logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
-                top_p = self.top_p,
+                top_p=self.top_p,
                 **self.kwargs,
             )
             choice = response.choices[0]
@@ -117,7 +119,7 @@ class LLMModel:
                 max_tokens=self.max_tokens,
                 logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
-                top_p = self.top_p,
+                top_p=self.top_p,
                 **self.kwargs,
             )
             choice = response.choices[0]
@@ -151,7 +153,7 @@ class LLMModel:
                 max_tokens=self.max_tokens,
                 logprobs=self.logprobs,
                 top_logprobs=self.top_logprobs,
-                top_p = self.top_p,
+                top_p=self.top_p,
                 **self.kwargs,
             )
             results = []

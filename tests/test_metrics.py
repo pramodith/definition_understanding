@@ -4,7 +4,7 @@ Tests for the evaluation metrics module.
 This module contains tests for the metrics used to evaluate LLM performance.
 """
 
-from src.evaluation.metrics import (
+from evaluation.metrics import (
     analyze_results_by_category,
     calculate_metrics,
     extract_predicted_word,

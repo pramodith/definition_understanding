@@ -83,13 +83,17 @@ def is_correct_answer(
     # If none are True, call JudgeLLM if provided
     if not is_correct["exact"] and judgellm_model:
         for pred in preds:
-            if judge_llm_equivalence(pred, target, definition, judgellm_model):
+            if judge_llm_equivalence(
+                normalize_word(pred), target_norm, definition, judgellm_model
+            ):
                 is_correct["judgellm"] = True
                 break
     return is_correct
 
 
-def judge_llm_equivalence(prediction: str, target: str, definition: str, llm_model: LLMModel) -> bool:
+def judge_llm_equivalence(
+    prediction: str, target: str, definition: str, llm_model: LLMModel
+) -> bool:
     """
     Uses an LLM to judge if two words are equivalent or synonymous (ignoring tense, plurality, etc).
     Returns True if the LLM says they are equivalent or synonymous.
@@ -105,14 +109,14 @@ def judge_llm_equivalence(prediction: str, target: str, definition: str, llm_mod
     prompt = [
         {
             "role": "system",
-            "content": "You are an expert linguist. "\
+            "content": "You are an expert linguist. "
             "You will judge if two words are the same or synonymous given a definition. Respond with a single word: 'Yes' or 'No'.\n\n"
             + examples,
         },
         {
             "role": "user",
-            "content": f"Definition: {definition}"\
-                f" Are the words '{prediction}' and '{target}' the same or synonymous?",
+            "content": f"Definition: {definition}"
+            f" Are the words '{prediction}' and '{target}' the same or synonymous?",
         },
     ]
     try:
@@ -185,7 +189,6 @@ def calculate_metrics(
     for result in results:
         target = result["word"]
         prediction = result["prediction"][0]
-        definition = result["definition"]
         y_true.append(target)
         y_pred.append(prediction)
 
@@ -305,7 +308,9 @@ def is_correct_topk(
             fuzzy_found = True
         # JudgeLLM
         if judgellm_model and not exact_found:
-            if judge_llm_equivalence(pred_norm, target_norm, definition, judgellm_model):
+            if judge_llm_equivalence(
+                pred_norm, target_norm, definition, judgellm_model
+            ):
                 judgellm_found = True
 
     return exact_found, fuzzy_found, judgellm_found
@@ -342,7 +347,9 @@ def calculate_topk_metrics(
             )
             target = r["word"]
             definition = r["definition"]
-            ex, fz, judgellm = is_correct_topk(preds, target, definition, judgellm_model)
+            ex, fz, judgellm = is_correct_topk(
+                preds, target, definition, judgellm_model
+            )
             if ex:
                 exact_hits += 1
             if fz:

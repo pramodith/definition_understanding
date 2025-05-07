@@ -13,12 +13,12 @@ import pandas as pd
 
 from data_processing.collect_dictionary import (
     fetch_definition_from_free_dictionary,
-    get_word_list,
-    get_wikipedia_medical_glossary_word_list,
-    process_dictionary_data,
     fetch_medical_definitions,
-    parse_wordsapi_entry,
+    get_wikipedia_medical_glossary_word_list,
+    get_word_list,
     parse_medical_entry,
+    parse_wordsapi_entry,
+    process_dictionary_data,
 )
 
 
@@ -208,14 +208,17 @@ def test_fetch_medical_definitions(mock_get):
     assert isinstance(result, dict)
     assert "aspirin" in result
     assert isinstance(result["aspirin"], list)
-    assert result["aspirin"][0]["definition"] == "A medication used to reduce pain, fever, or inflammation."
+    assert (
+        result["aspirin"][0]["definition"]
+        == "A medication used to reduce pain, fever, or inflammation."
+    )
     assert result["aspirin"][0]["synonyms"] == []
 
     mock_response.json.return_value = [
         {
             "fl": "noun",
             "shortdef": ["A medication used to reduce pain, fever, or inflammation."],
-            "meta": {"syns": ["painkiller"], "stems": ["painfree", "abs"]}
+            "meta": {"syns": ["painkiller"], "stems": ["painfree", "abs"]},
         }
     ]
     mock_get.return_value = mock_response
@@ -226,15 +229,17 @@ def test_fetch_medical_definitions(mock_get):
     assert result["aspirin"][0]["synonyms"] == ["painkiller", "painfree", "abs"]
     assert result["aspirin"][0]["part_of_speech"] == "noun"
 
+
 @patch("requests.get")
 def test_get_wikipedia_medical_glossary_word_list(mock_get):
     """Test getting medical glossary word list from Wikipedia."""
-    html = '''<div class="mw-parser-output"><dt>Aspirin</dt><dt>Ibuprofen</dt></div>'''
+    html = """<div class="mw-parser-output"><dt>Aspirin</dt><dt>Ibuprofen</dt></div>"""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.text = html
     mock_get.return_value = mock_response
     import tempfile
+
     with tempfile.TemporaryDirectory() as temp_dir:
         output_file = os.path.join(temp_dir, "medical_word_list.txt")
         word_list = get_wikipedia_medical_glossary_word_list(output_file=output_file)
@@ -242,20 +247,24 @@ def test_get_wikipedia_medical_glossary_word_list(mock_get):
         assert "Ibuprofen" in word_list
         assert os.path.exists(output_file)
 
+
 def test_parse_medical_entry():
     word = "aspirin"
     data = [
         {
             "definition": "A medication used to reduce pain, fever, or inflammation.",
             "part_of_speech": "noun",
-            "synonyms": ["painkiller", "painfree", "abs"]
+            "synonyms": ["painkiller", "painfree", "abs"],
         }
     ]
     entries = parse_medical_entry(word, data)
     assert isinstance(entries, list)
     assert len(entries) == 1
     assert entries[0]["word"] == "aspirin"
-    assert entries[0]["definition"] == "A medication used to reduce pain, fever, or inflammation."
+    assert (
+        entries[0]["definition"]
+        == "A medication used to reduce pain, fever, or inflammation."
+    )
     assert entries[0]["part_of_speech"] == "noun"
     assert entries[0]["synonyms"] == ["painkiller", "painfree", "abs"]
 
@@ -264,12 +273,9 @@ def test_parse_wordsapi_entry():
     word = "aspirin"
     data = {
         "word": "aspirin",
-        "definitions": [
-            {"definition": "A drug used to reduce pain and fever."}
-        ],
+        "definitions": [{"definition": "A drug used to reduce pain and fever."}],
     }
     entries = parse_wordsapi_entry(word, data)
     assert isinstance(entries, list)
     assert entries[0]["word"] == "aspirin"
     assert "pain" in entries[0]["definition"]
-

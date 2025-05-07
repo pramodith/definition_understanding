@@ -10,14 +10,14 @@ import asyncio
 import json
 import os
 
-import pandas as pd
-
 from metrics import (
     analyze_results_by_category,
     calculate_metrics,
-    calculate_topk_metrics,
     save_evaluation_results,
 )
+import pandas as pd
+
+from evaluation.utils import EvaluationModels
 from models.model_factory import get_model
 
 
@@ -98,7 +98,9 @@ async def evaluate_model_async(
         df = df.sample(num_samples, random_state=42)
 
     # Get model
-    model = get_model(model_name, logprobs=True, top_logprobs=top_logprobs, is_local=is_local)
+    model = get_model(
+        model_name, logprobs=True, top_logprobs=top_logprobs, is_local=is_local
+    )
     judgellm_model = get_model(judgellm_model_name, is_local=False)
 
     print(
@@ -180,10 +182,10 @@ async def evaluate_model_async(
 
     # Calculate metrics
     metrics = calculate_metrics(results, judgellm_model)
-    topk_metrics = calculate_topk_metrics(
-        results, topk_list=[1, 3, 5], judgellm_model=judgellm_model
-    )
-    metrics.update(topk_metrics)
+    # topk_metrics = calculate_topk_metrics(
+    #     results, topk_list=[1, 3, 5], judgellm_model=judgellm_model
+    # )
+    # metrics.update(topk_metrics)
 
     # Analyze results by category
     category_metrics = analyze_results_by_category(results)
@@ -200,10 +202,10 @@ async def evaluate_model_async(
     print(f"Accuracy with synonyms: {metrics['synonym_accuracy']:.4f}")
     print(f"Judgellm accuracy: {metrics['judgellm_accuracy']:.4f}")
     print(f"Number of samples: {metrics['num_samples']}")
-    for k in [1, 3, 5]:
-        print(f"accuracy@{k}: {metrics.get(f'accuracy@{k}', 0):.4f}")
-        print(f"fuzzy_accuracy@{k}: {metrics.get(f'fuzzy_accuracy@{k}', 0):.4f}")
-        print(f"judgellm_accuracy@{k}: {metrics.get(f'judgellm_accuracy@{k}', 0):.4f}")
+    # for k in [1, 3, 5]:
+    #     print(f"accuracy@{k}: {metrics.get(f'accuracy@{k}', 0):.4f}")
+    #     print(f"fuzzy_accuracy@{k}: {metrics.get(f'fuzzy_accuracy@{k}', 0):.4f}")
+    #     print(f"judgellm_accuracy@{k}: {metrics.get(f'judgellm_accuracy@{k}', 0):.4f}")
 
     return metrics
 
@@ -247,9 +249,10 @@ def evaluate_model(
             verbose=verbose,
             batch_size=batch_size,
             top_logprobs=top_logprobs,
-            is_local=is_local
+            is_local=is_local,
         )
     )
+
 
 def main():
     """Main function to run the evaluation."""
@@ -261,14 +264,14 @@ def main():
         type=str,
         required=False,
         help="Name of the model to evaluate",
-        default="Qwen/Qwen2.5-1.5B-Instruct",
+        default="meta-llama/Llama-3.2-3B-Instruct-Turbo",
     )
     parser.add_argument(
         "--is_local",
         type=bool,
         required=False,
         help="A flag to indicate if a local inference engine is used",
-        default=True,
+        default=False,
     )
     parser.add_argument(
         "--judgellm_model_name",
@@ -316,16 +319,56 @@ def main():
 
     args = parser.parse_args()
 
-    evaluate_model(
-        model_name=args.model,
-        judgellm_model_name=args.judgellm_model_name,
-        dataset_path=args.dataset,
-        output_dir=args.output_dir,
-        num_samples=args.num_samples,
-        verbose=args.verbose,
-        batch_size=args.batch_size,
-        top_logprobs=args.top_logprobs,
-    )
+    model_list = [
+        EvaluationModels(
+            model_name="Qwen/Qwen2.5-1.5B-Instruct",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=True,
+        ),
+        EvaluationModels(
+            model_name="meta-llama/Llama-3.2-3B-Instruct-Turbo",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+        EvaluationModels(
+            model_name="Qwen/Qwen3-8B",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=True,
+        ),
+        EvaluationModels(
+            model_name="gpt-4.1-mini",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+        EvaluationModels(
+            model_name="gpt-4.1-nano",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+        EvaluationModels(
+            model_name="gpt-4.1",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+        EvaluationModels(
+            model_name="claude-3-7-sonnet-20250219",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+    ]
+
+    for model in model_list:
+        evaluate_model(
+            model_name=model.model_name,
+            judgellm_model_name=model.judgellm_model_name,
+            dataset_path=args.dataset,
+            output_dir=args.output_dir,
+            num_samples=args.num_samples,
+            verbose=args.verbose,
+            batch_size=args.batch_size,
+            top_logprobs=args.top_logprobs,
+            is_local=model.is_local,
+        )
 
 
 if __name__ == "__main__":
