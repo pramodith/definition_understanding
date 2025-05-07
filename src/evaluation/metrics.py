@@ -38,12 +38,65 @@ def normalize_word(word: str) -> str:
 
 
 def is_correct_answer(
-    prediction: str | list[str],
-    target: str,
-    definition: str,
-    synonyms: list[str] | None = None,
+    result: dict,
     judgellm_model: LLMModel | None = None,
-) -> dict[str, bool]:
+    return_judgellm_pred: bool = False
+) -> dict:
+    """
+    Check if the prediction is correct, considering synonyms and JudgeLLM.
+
+    Args:
+        result: Dictionary containing keys 'prediction', 'word', 'definition', 'synonyms', etc.
+        judgellm_model: Optional LLMModel instance for JudgeLLM
+        return_judgellm_pred: If True, include the raw JudgeLLM prediction string in the returned dict.
+
+    Returns:
+        Dictionary with keys 'exact', 'synonym', 'fuzzy', 'judgellm', and optionally 'judge_llm_prediction'.
+    """
+    prediction = result.get("prediction", "")
+    target = result.get("word", "")
+    definition = result.get("definition", "")
+    synonyms = result.get("synonyms", [])
+    preds = prediction if isinstance(prediction, list) else [prediction]
+    target_norm = normalize_word(target)
+    normalized_synonyms = [normalize_word(syn) for syn in synonyms] if synonyms else []
+    is_correct = {"exact": False, "synonym": False, "fuzzy": False, "judgellm": False}
+    judge_llm_prediction = None
+    for pred in preds:
+        pred_norm = normalize_word(pred)
+        # Check exact match
+        if pred_norm == target_norm:
+            is_correct["exact"] = True
+            is_correct["synonym"] = True
+            is_correct["fuzzy"] = True
+            is_correct["judgellm"] = True
+        # Check synonyms if provided
+        if (
+            not is_correct["synonym"]
+            and normalized_synonyms
+            and pred_norm in normalized_synonyms
+        ):
+            is_correct["synonym"] = is_correct["exact"] or True
+        # Check fuzzy match
+        if not is_correct["fuzzy"]:
+            if (pred_norm in target_norm) or (target_norm in pred_norm):
+                is_correct["fuzzy"] = is_correct["exact"] or True
+    # If none are True, call JudgeLLM if provided
+    if not is_correct["exact"] and judgellm_model:
+        for pred in preds:
+            from evaluation.metrics import judge_llm_equivalence
+            is_equiv = judge_llm_equivalence(
+                normalize_word(pred), target_norm, definition, judgellm_model
+            )
+            if is_equiv:
+                is_correct["judgellm"] = True
+                judge_llm_prediction = "yes"
+                break
+            judge_llm_prediction = "no"
+    if return_judgellm_pred:
+        is_correct["judge_llm_prediction"] = judge_llm_prediction
+    return is_correct
+
     """
     Check if the prediction is correct, considering synonyms and JudgeLLM.
 
@@ -105,6 +158,11 @@ def judge_llm_equivalence(
     Are the words 'Cerebrum' and 'Forebrain' the same or synonymous? Yes
     Definition: An elevated body temperature, often due to infection or illness.
     Are the words 'Fever' and 'diarrhea' the same or synonymous? No
+    Definition: a single-stranded RNA molecule that carries genetic information"\
+        "and from the DNA in the cell's nucleus to the cytoplasm, where proteins are synthesized"
+    Are the words 'mRNA' and 'Messenger RNA' the same or synonymous? Yes
+    Definition: beat or sound with a strong, regular rhythm; pulsate steadily.
+    Are the words 'throb' and 'throbbing' the same or synonymous? Yes
     """
     prompt = [
         {
@@ -185,24 +243,14 @@ def calculate_metrics(
     """
     y_true = []
     y_pred = []
+    is_correct = []
 
     for result in results:
         target = result["word"]
         prediction = result["prediction"][0]
         y_true.append(target)
         y_pred.append(prediction)
-
-    # Calculate exact match accuracy (any of top-k predictions)
-    is_correct = [
-        is_correct_answer(
-            prediction=results[i]["prediction"][0],
-            target=results[i]["word"],
-            definition=results[i]["definition"],
-            synonyms=results[i].get("synonyms", []),
-            judgellm_model=judgellm_model,
-        )
-        for i in range(len(results))
-    ]
+        is_correct.append(is_correct_answer(result, judgellm_model=judgellm_model))
 
     exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(
         is_correct

@@ -7,7 +7,6 @@ to run local models using vLLM for efficient inference.
 
 try:
     from transformers import AutoTokenizer
-    import vllm
     from vllm import LLM, SamplingParams
 
     VLLM_AVAILABLE = True
@@ -49,7 +48,7 @@ class VLLMModel(LLMModel):
             model=self.model_name,
             tensor_parallel_size=self.tensor_parallel_size,
             gpu_memory_utilization=self.gpu_memory_utilization,
-            dtype="half",
+            dtype="float32",
             enable_prefix_caching=True,
         )
 

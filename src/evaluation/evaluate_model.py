@@ -10,8 +10,9 @@ import asyncio
 import json
 import os
 
-from metrics import (
+from evaluation.metrics import (
     analyze_results_by_category,
+    is_correct_answer,
     calculate_metrics,
     save_evaluation_results,
 )
@@ -19,6 +20,10 @@ import pandas as pd
 
 from evaluation.utils import EvaluationModels
 from models.model_factory import get_model
+from dotenv import load_dotenv
+from tqdm import tqdm
+
+load_dotenv()
 
 
 def create_prompt(definition: str, part_of_speech: str | None = None) -> str:
@@ -45,13 +50,13 @@ def create_prompt(definition: str, part_of_speech: str | None = None) -> str:
         "Respond with just the word and no additional text."
         "# Examples:\n"
         "Definition: A custom-made or tailored item.\nPart of speech: adjective\n"
-        "Bespoke\n"
+        "Answer: Bespoke\n"
         "Definition: To rage in excess of.\nPart of speech: verb\n"
-        "Outrage\n"
+        "Answer: Outrage\n"
     )
 
     system_prompt = system_prompt + "\n\n" + instructions
-    user_query = f"Definition: {definition}\nPart of speech: {pos_info}\n"
+    user_query = f"Definition: {definition}\nPart of speech: {pos_info}\nAnswer:"
     prompt_message = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_query},
@@ -155,7 +160,7 @@ async def evaluate_model_async(
 
     # Process results
     results = []
-    for i, prediction_list in enumerate(responses):
+    for i, prediction_list in tqdm(enumerate(responses), desc="Evaluating predictions"):
         # prediction_list is already a list of top-k predictions
         result = {
             "word": words[i],
@@ -165,6 +170,15 @@ async def evaluate_model_async(
             "prediction": prediction_list,
             "full_response": prediction_list,  # Optionally store the full list
         }
+        # Evaluate correctness and get judge_llm_prediction
+        correct_info = is_correct_answer(
+            result,
+            judgellm_model=judgellm_model,
+            return_judgellm_pred=True
+        )
+        # Add judge_llm_prediction if present
+        if "judge_llm_prediction" in correct_info:
+            result["judge_llm_prediction"] = correct_info["judge_llm_prediction"]
         results.append(result)
 
         if verbose:
@@ -200,6 +214,7 @@ async def evaluate_model_async(
     print(f"\nEvaluation results for {model_name}:")
     print(f"Exact match accuracy: {metrics['exact_accuracy']:.4f}")
     print(f"Accuracy with synonyms: {metrics['synonym_accuracy']:.4f}")
+    print(f"Fuzzy accuracy: {metrics['fuzzy_accuracy']:.4f}")
     print(f"Judgellm accuracy: {metrics['judgellm_accuracy']:.4f}")
     print(f"Number of samples: {metrics['num_samples']}")
     # for k in [1, 3, 5]:
@@ -299,7 +314,7 @@ def main():
         type=int,
         required=False,
         help="Number of samples to evaluate (None for all)",
-        default=10,
+        default=None,
     )
     parser.add_argument(
         "--verbose", action="store_true", help="Print detailed information"

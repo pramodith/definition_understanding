@@ -10,6 +10,8 @@ import asyncio
 import litellm
 from litellm import acompletion, batch_completion
 
+litellm.drop_params = True
+
 
 class LLMModel:
     """Base class for LLM interfaces using LiteLLM."""
@@ -123,10 +125,7 @@ class LLMModel:
                 **self.kwargs,
             )
             choice = response.choices[0]
-            topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
-            if not topk_tokens:
-                topk_tokens = [choice.message.content.strip()]
-            return topk_tokens
+            return [choice.message.content.strip()]
         except Exception as e:
             print(f"Error generating async response from {self.model_name}: {e}")
             print(response)
@@ -159,10 +158,7 @@ class LLMModel:
             results = []
             for resp in responses:
                 choice = resp.choices[0]
-                topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
-                if not topk_tokens:
-                    topk_tokens = [choice.message.content.strip()]
-                results.append(topk_tokens)
+                results.append([choice.message.content.strip()])
             return results
         except Exception as e:
             print(f"Error generating batch responses from {self.model_name}: {e}")

@@ -28,6 +28,7 @@ def main():
                             "definition": entry.get("definition", ""),
                             "part_of_speech": entry.get("part_of_speech", ""),
                             "model": model_name,
+                            "judge_llm_prediction": entry.get("judge_llm_prediction", ""),
                         }
                     )
     df = pd.DataFrame(
@@ -38,9 +39,9 @@ def main():
             "definition",
             "part_of_speech",
             "model",
+            "judge_llm_prediction",
         ],
     )
-    print(df)
 
     # Save as CSV
     output_path = os.path.join(RESULTS_DIR, "no_exact_match_terms.csv")

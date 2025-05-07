@@ -112,10 +112,9 @@ def main():
     Main function to aggregate model results, save the comparison CSV, and plot performance.
     """
     df = aggregate_model_metrics(RESULTS_DIR)
-    print(df)
     output_csv = os.path.join(RESULTS_DIR, "model_performance_comparison.csv")
     save_metrics_csv(df, output_csv)
-    plot_model_performance(df)
+    plot_model_performance(df, save_path=f"{RESULTS_DIR}/model_performance_comparison.png")
 
 
 if __name__ == "__main__":
