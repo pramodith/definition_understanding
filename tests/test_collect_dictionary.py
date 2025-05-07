@@ -275,7 +275,7 @@ def test_parse_wordsapi_entry():
         "word": "aspirin",
         "definitions": [{"definition": "A drug used to reduce pain and fever."}],
     }
-    entries = parse_wordsapi_entry(word, data)
+    entries = parse_wordsapi_entry(word, data, min_definition_length=10)
     assert isinstance(entries, list)
     assert entries[0]["word"] == "aspirin"
     assert "pain" in entries[0]["definition"]

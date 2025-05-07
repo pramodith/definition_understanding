@@ -114,7 +114,9 @@ def main():
     df = aggregate_model_metrics(RESULTS_DIR)
     output_csv = os.path.join(RESULTS_DIR, "model_performance_comparison.csv")
     save_metrics_csv(df, output_csv)
-    plot_model_performance(df, save_path=f"{RESULTS_DIR}/model_performance_comparison.png")
+    plot_model_performance(
+        df, save_path=f"{RESULTS_DIR}/model_performance_comparison.png"
+    )
 
 
 if __name__ == "__main__":

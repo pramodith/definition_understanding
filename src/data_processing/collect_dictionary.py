@@ -150,10 +150,6 @@ def fetch_medical_definitions(
                 part_of_speech = entry.get("fl", "")
                 synonyms = entry.get("meta", {}).get("syns", [])
                 synonyms.extend(entry.get("meta", {}).get("stems", []))
-                # Synonyms may appear under 'meta' > 'syns' (not always present)
-                if "meta" in entry and "syns" in entry["meta"]:
-                    for syn_group in entry["meta"]["syns"]:
-                        synonyms.extend(syn_group)
 
                 existing_data[word].append(
                     {

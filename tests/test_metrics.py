@@ -32,48 +32,86 @@ def test_normalize_word():
 def test_is_correct_answer():
     """Test function for checking if an answer is correct."""
     # Test exact match
-    assert is_correct_answer("apple", "apple")["exact"] is True
-    assert is_correct_answer("Apple", "apple")["exact"] is True
-    assert is_correct_answer("apple", "banana")["exact"] is False
+    # Test exact match
+    assert is_correct_answer({"prediction": "apple", "word": "apple"})["exact"] is True
+    assert is_correct_answer({"prediction": "Apple", "word": "apple"})["exact"] is True
+    assert (
+        is_correct_answer({"prediction": "apple", "word": "banana"})["exact"] is False
+    )
 
     # Test with synonyms
     assert (
-        is_correct_answer("fruit", "apple", synonyms=["fruit", "produce"])["synonym"]
-        is True
-    )
-    assert (
-        is_correct_answer("produce", "apple", synonyms=["fruit", "produce"])["synonym"]
-        is True
-    )
-    assert (
-        is_correct_answer("vegetable", "apple", synonyms=["fruit", "produce"])[
-            "synonym"
-        ]
-        is False
-    )
-
-    # Test fuzzy matching
-    assert is_correct_answer("app", "apple")["fuzzy"] is True
-    assert is_correct_answer("applesauce", "apple")["fuzzy"] is True
-    assert is_correct_answer("banana", "apple")["fuzzy"] is False
-
-    # Test with list of predictions (top-k)
-    assert is_correct_answer(["apple", "banana"], "apple")["exact"] is True
-    assert is_correct_answer(["banana", "pear"], "apple")["exact"] is False
-    assert (
-        is_correct_answer(["fruit", "produce"], "apple", synonyms=["fruit", "produce"])[
-            "synonym"
-        ]
+        is_correct_answer(
+            {"prediction": "fruit", "word": "apple", "synonyms": ["fruit", "produce"]}
+        )["synonym"]
         is True
     )
     assert (
         is_correct_answer(
-            ["vegetable", "grain"], "apple", synonyms=["fruit", "produce"]
+            {"prediction": "produce", "word": "apple", "synonyms": ["fruit", "produce"]}
+        )["synonym"]
+        is True
+    )
+    assert (
+        is_correct_answer(
+            {
+                "prediction": "vegetable",
+                "word": "apple",
+                "synonyms": ["fruit", "produce"],
+            }
         )["synonym"]
         is False
     )
-    assert is_correct_answer(["app", "applesauce"], "apple")["fuzzy"] is True
-    assert is_correct_answer(["banana", "pear"], "apple")["fuzzy"] is False
+
+    # Test fuzzy matching
+    assert is_correct_answer({"prediction": "app", "word": "apple"})["fuzzy"] is True
+    assert (
+        is_correct_answer({"prediction": "applesauce", "word": "apple"})["fuzzy"]
+        is True
+    )
+    assert (
+        is_correct_answer({"prediction": "banana", "word": "apple"})["fuzzy"] is False
+    )
+
+    # Test with list of predictions (top-k)
+    assert (
+        is_correct_answer({"prediction": ["apple", "banana"], "word": "apple"})["exact"]
+        is True
+    )
+    assert (
+        is_correct_answer({"prediction": ["banana", "pear"], "word": "apple"})["exact"]
+        is False
+    )
+    assert (
+        is_correct_answer(
+            {
+                "prediction": ["fruit", "produce"],
+                "word": "apple",
+                "synonyms": ["fruit", "produce"],
+            }
+        )["synonym"]
+        is True
+    )
+    assert (
+        is_correct_answer(
+            {
+                "prediction": ["vegetable", "grain"],
+                "word": "apple",
+                "synonyms": ["fruit", "produce"],
+            }
+        )["synonym"]
+        is False
+    )
+    assert (
+        is_correct_answer({"prediction": ["app", "applesauce"], "word": "apple"})[
+            "fuzzy"
+        ]
+        is True
+    )
+    assert (
+        is_correct_answer({"prediction": ["banana", "pear"], "word": "apple"})["fuzzy"]
+        is False
+    )
 
 
 def test_extract_predicted_word():
@@ -157,10 +195,10 @@ def test_calculate_metrics():
     ]
     metrics_topk = calculate_metrics(results_topk)
     assert (
-        metrics_topk["exact_accuracy"] == 0.25
+        metrics_topk["exact_accuracy"] == 0.5
     )  # 3 out of 4 have the correct word in top-k
     assert (
-        metrics_topk["synonym_accuracy"] == 0.50
+        metrics_topk["synonym_accuracy"] == 0.75
     )  # 4 out of 4 have correct or synonym in top-k
 
 

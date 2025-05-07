@@ -10,18 +10,18 @@ import asyncio
 import json
 import os
 
+from dotenv import load_dotenv
+import pandas as pd
+from tqdm import tqdm
+
 from evaluation.metrics import (
     analyze_results_by_category,
-    is_correct_answer,
     calculate_metrics,
+    is_correct_answer,
     save_evaluation_results,
 )
-import pandas as pd
-
 from evaluation.utils import EvaluationModels
 from models.model_factory import get_model
-from dotenv import load_dotenv
-from tqdm import tqdm
 
 load_dotenv()
 
@@ -172,9 +172,7 @@ async def evaluate_model_async(
         }
         # Evaluate correctness and get judge_llm_prediction
         correct_info = is_correct_answer(
-            result,
-            judgellm_model=judgellm_model,
-            return_judgellm_pred=True
+            result, judgellm_model=judgellm_model, return_judgellm_pred=True
         )
         # Add judge_llm_prediction if present
         if "judge_llm_prediction" in correct_info:

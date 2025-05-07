@@ -28,7 +28,9 @@ def main():
                             "definition": entry.get("definition", ""),
                             "part_of_speech": entry.get("part_of_speech", ""),
                             "model": model_name,
-                            "judge_llm_prediction": entry.get("judge_llm_prediction", ""),
+                            "judge_llm_prediction": entry.get(
+                                "judge_llm_prediction", ""
+                            ),
                         }
                     )
     df = pd.DataFrame(

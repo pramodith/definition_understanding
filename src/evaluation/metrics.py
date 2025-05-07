@@ -40,7 +40,7 @@ def normalize_word(word: str) -> str:
 def is_correct_answer(
     result: dict,
     judgellm_model: LLMModel | None = None,
-    return_judgellm_pred: bool = False
+    return_judgellm_pred: bool = False,
 ) -> dict:
     """
     Check if the prediction is correct, considering synonyms and JudgeLLM.
@@ -85,6 +85,7 @@ def is_correct_answer(
     if not is_correct["exact"] and judgellm_model:
         for pred in preds:
             from evaluation.metrics import judge_llm_equivalence
+
             is_equiv = judge_llm_equivalence(
                 normalize_word(pred), target_norm, definition, judgellm_model
             )
@@ -241,15 +242,8 @@ def calculate_metrics(
     Returns:
         Dictionary of metrics
     """
-    y_true = []
-    y_pred = []
     is_correct = []
-
     for result in results:
-        target = result["word"]
-        prediction = result["prediction"][0]
-        y_true.append(target)
-        y_pred.append(prediction)
         is_correct.append(is_correct_answer(result, judgellm_model=judgellm_model))
 
     exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(
