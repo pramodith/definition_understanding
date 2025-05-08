@@ -11,6 +11,18 @@ This project tests LLMs' ability to predict words based on their definitions. Th
 3. Evaluating performance using various metrics
 4. Accounting for synonyms in the evaluation process
 
+## Model Performance Comparison
+
+![Performance of different models](results/model_performance_comparison.png)
+*Figure: Performance comparison of evaluated language models on the definition understanding task.*
+
+## Conclusions
+
+- **Claude-3-7-Sonnet** and **gpt-4.1** achieve the highest exact and fuzzy accuracy, with Claude-3-7-Sonnet slightly outperforming gpt-4.1 overall.
+- **gpt-4.1-mini** and **gpt-4.1-nano** show lower performance across all metrics, indicating the benefits of larger or more advanced models for this task.
+- Fuzzy and synonym-based metrics are notably higher than exact accuracy, highlighting the importance of considering near-misses and alternative valid answers when evaluating language models on definition understanding tasks.
+- The results suggest that both model size and architecture play important roles in accurately interpreting and predicting word definitions.
+
 ## Project Structure
 
 - `data/`: Contains raw and processed dictionary datasets
@@ -24,7 +36,16 @@ This project tests LLMs' ability to predict words based on their definitions. Th
 
 ## Getting Started
 
-1. Set up the environment:
+1. Set up environment variables:
+   - Copy `.env.example` to `.env` in the project root:
+     ```bash
+     cp .env.example .env
+     # On Windows (PowerShell):
+     copy .env.example .env
+     ```
+   - Edit `.env` to fill in your HuggingFace token and any other required variables.
+
+2. Set up the environment:
 ```
 Install uv if not already installed:
 pip install uv
@@ -40,7 +61,7 @@ Install dependencies:
 uv sync
 ```
 
-2. Run the data collection script:
+3. Run the data collection script:
    ```bash
    python src/data_processing/collect_dictionary.py
    ```
