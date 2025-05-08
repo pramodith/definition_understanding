@@ -189,9 +189,6 @@ async def evaluate_model_async(
     # )
     # metrics.update(topk_metrics)
 
-    # Analyze results by category
-    category_metrics = analyze_results_by_category(results)
-
     # Save results
     os.makedirs(output_dir, exist_ok=True)
     model_name = model_name.split("/")[-1]

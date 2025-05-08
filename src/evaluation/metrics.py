@@ -189,29 +189,30 @@ def calculate_metrics(
     Returns:
         Dictionary of metrics
     """
-    is_correct = []
+    exact_accuracy = 0
+    synonym_accuracy = 0
+    fuzzy_accuracy = 0
+    judgellm_accuracy = 0
     for i in tqdm(range(len(results)), desc="Judging ..."):
-        is_correct.append(is_correct_answer(results[i], judgellm_model=judgellm_model))
-        results[i]["judge_llm_prediction"] = is_correct[i]["judgellm"]
 
-    exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(
-        is_correct
-    )
-    synonym_accuracy = sum(
-        is_correct[i]["synonym"] for i in range(len(is_correct))
-    ) / len(is_correct)
-    fuzzy_accuracy = sum(is_correct[i]["fuzzy"] for i in range(len(is_correct))) / len(
-        is_correct
-    )
-    judgellm_accuracy = sum(
-        is_correct[i]["judgellm"] for i in range(len(is_correct))
-    ) / len(is_correct)
+        if "exact" not in results[i]:
+            judgement = is_correct_answer(results[i], judgellm_model=judgellm_model)
+        
+            results[i]["exact"] = judgement["exact"]
+            results[i]["synonym"] = judgement["synonym"]
+            results[i]["fuzzy"] = judgement["fuzzy"]
+            results[i]["judge_llm_prediction"] = judgement["judgellm"]
+        
+        exact_accuracy += results[i]["exact"]
+        synonym_accuracy += results[i]["synonym"]
+        fuzzy_accuracy += results[i]["fuzzy"]
+        judgellm_accuracy += results[i]["judge_llm_prediction"]
 
     return {
-        "exact_accuracy": exact_accuracy,
-        "synonym_accuracy": synonym_accuracy,
-        "fuzzy_accuracy": fuzzy_accuracy,
-        "judgellm_accuracy": judgellm_accuracy,
+        "exact_accuracy": exact_accuracy / len(results),
+        "synonym_accuracy": synonym_accuracy / len(results),
+        "fuzzy_accuracy": fuzzy_accuracy / len(results),
+        "judgellm_accuracy": judgellm_accuracy / len(results),
         "num_samples": len(results),
     }, results
 
@@ -249,7 +250,7 @@ def analyze_results_by_category(
 
             pos_results = df[df["part_of_speech"] == pos].to_dict("records")
             if pos_results:
-                pos_metrics[pos] = calculate_metrics(pos_results)
+                pos_metrics[pos], _ = calculate_metrics(pos_results)
 
     # Calculate metrics by word length category
     length_metrics = {}

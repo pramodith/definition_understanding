@@ -161,7 +161,14 @@ def test_calculate_metrics():
         },
     ]
 
-    metrics = calculate_metrics(results)
+    metrics, results = calculate_metrics(results)
+
+    # Assert all updated results have required keys and correct types
+    for res in results:
+        for key in ["exact", "synonym", "fuzzy", "judge_llm_prediction"]:
+            assert key in res, f"Missing key {key} in result {res}"
+            assert isinstance(res[key], (bool, int)), f"Key {key} should be bool or int, got {type(res[key])}"
+
     assert metrics["exact_accuracy"] == 0.5  # 2 out of 4 correct
     assert metrics["synonym_accuracy"] == 0.75
     assert metrics["fuzzy_accuracy"] == 0.5
@@ -193,7 +200,7 @@ def test_calculate_metrics():
             "synonyms": ["canine"],
         },
     ]
-    metrics_topk = calculate_metrics(results_topk)
+    metrics_topk, _ = calculate_metrics(results_topk)
     assert (
         metrics_topk["exact_accuracy"] == 0.5
     )  # 3 out of 4 have the correct word in top-k
@@ -212,6 +219,10 @@ def test_analyze_results_by_category():
             "prediction": ["apple"],
             "part_of_speech": "noun",
             "synonyms": [],
+            "exact": 1,
+            "synonym": 0,
+            "fuzzy": 0,
+            "judge_llm_prediction": 1,
         },
         {
             "word": "banana",
@@ -219,6 +230,10 @@ def test_analyze_results_by_category():
             "prediction": ["banana"],
             "part_of_speech": "noun",
             "synonyms": [],
+            "exact": 1,
+            "synonym": 0,
+            "fuzzy": 0,
+            "judge_llm_prediction": 1,
         },
         {
             "word": "run",
@@ -226,6 +241,10 @@ def test_analyze_results_by_category():
             "prediction": ["sprint"],
             "part_of_speech": "verb",
             "synonyms": ["sprint"],
+            "exact": 0,
+            "synonym": 1,
+            "fuzzy": 0,
+            "judge_llm_prediction": 1,
         },
         {
             "word": "happy",
@@ -233,6 +252,10 @@ def test_analyze_results_by_category():
             "prediction": ["sad"],
             "part_of_speech": "adjective",
             "synonyms": [],
+            "exact": 0,
+            "synonym": 0,
+            "fuzzy": 0,
+            "judge_llm_prediction": 0,
         },
     ]
 
@@ -248,6 +271,11 @@ def test_analyze_results_by_category():
     assert "noun" in pos_metrics
     assert "verb" in pos_metrics
     assert "adjective" in pos_metrics
+
+    # Each value should be a metrics dict (not a tuple)
+    assert isinstance(pos_metrics["noun"], dict)
+    assert isinstance(pos_metrics["verb"], dict)
+    assert isinstance(pos_metrics["adjective"], dict)
 
     # Check accuracy by part of speech
     assert pos_metrics["noun"]["exact_accuracy"] == 1.0  # 2 out of 2 correct
