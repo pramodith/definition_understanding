@@ -9,6 +9,7 @@ import json
 import re
 
 import pandas as pd
+from tqdm import tqdm
 
 from models.base_model import LLMModel
 
@@ -40,7 +41,6 @@ def normalize_word(word: str) -> str:
 def is_correct_answer(
     result: dict,
     judgellm_model: LLMModel | None = None,
-    return_judgellm_pred: bool = False,
 ) -> dict:
     """
     Check if the prediction is correct, considering synonyms and JudgeLLM.
@@ -48,10 +48,9 @@ def is_correct_answer(
     Args:
         result: Dictionary containing keys 'prediction', 'word', 'definition', 'synonyms', etc.
         judgellm_model: Optional LLMModel instance for JudgeLLM
-        return_judgellm_pred: If True, include the raw JudgeLLM prediction string in the returned dict.
 
     Returns:
-        Dictionary with keys 'exact', 'synonym', 'fuzzy', 'judgellm', and optionally 'judge_llm_prediction'.
+        Dictionary with keys 'exact', 'synonym', 'fuzzy', 'judgellm'
     """
     prediction = result.get("prediction", "")
     target = result.get("word", "")
@@ -61,7 +60,6 @@ def is_correct_answer(
     target_norm = normalize_word(target)
     normalized_synonyms = [normalize_word(syn) for syn in synonyms] if synonyms else []
     is_correct = {"exact": False, "synonym": False, "fuzzy": False, "judgellm": False}
-    judge_llm_prediction = None
     for pred in preds:
         pred_norm = normalize_word(pred)
         # Check exact match
@@ -84,65 +82,14 @@ def is_correct_answer(
     # If none are True, call JudgeLLM if provided
     if not is_correct["exact"] and judgellm_model:
         for pred in preds:
-            from evaluation.metrics import judge_llm_equivalence
-
             is_equiv = judge_llm_equivalence(
                 normalize_word(pred), target_norm, definition, judgellm_model
             )
             if is_equiv:
                 is_correct["judgellm"] = True
-                judge_llm_prediction = "yes"
-                break
-            judge_llm_prediction = "no"
-    if return_judgellm_pred:
-        is_correct["judge_llm_prediction"] = judge_llm_prediction
-    return is_correct
-
-    """
-    Check if the prediction is correct, considering synonyms and JudgeLLM.
-
-    Args:
-        prediction: The predicted word(s)
-        target: The target word
-        definition: The definition of the target word
-        synonyms: List of acceptable synonyms
-        judgellm_model: Optional LLMModel instance for JudgeLLM
-
-    Returns:
-        Dictionary with keys 'exact', 'synonym', 'fuzzy', 'judgellm'
-    """
-    preds = prediction if isinstance(prediction, list) else [prediction]
-    target_norm = normalize_word(target)
-    normalized_synonyms = [normalize_word(syn) for syn in synonyms] if synonyms else []
-    is_correct = {"exact": False, "synonym": False, "fuzzy": False, "judgellm": False}
-    for pred in preds:
-        pred_norm = normalize_word(pred)
-        # Check exact match
-        if pred_norm == target_norm:
-            is_correct["exact"] = True
-            is_correct["synonym"] = True
-            is_correct["fuzzy"] = True
-            is_correct["judgellm"] = True
-        # Check synonyms if provided
-        if (
-            not is_correct["synonym"]
-            and normalized_synonyms
-            and pred_norm in normalized_synonyms
-        ):
-            is_correct["synonym"] = is_correct["exact"] or True
-        # Check fuzzy match
-        if not is_correct["fuzzy"]:
-            if (pred_norm in target_norm) or (target_norm in pred_norm):
-                is_correct["fuzzy"] = is_correct["exact"] or True
-    # If none are True, call JudgeLLM if provided
-    if not is_correct["exact"] and judgellm_model:
-        for pred in preds:
-            if judge_llm_equivalence(
-                normalize_word(pred), target_norm, definition, judgellm_model
-            ):
-                is_correct["judgellm"] = True
                 break
     return is_correct
+
 
 
 def judge_llm_equivalence(
@@ -243,8 +190,9 @@ def calculate_metrics(
         Dictionary of metrics
     """
     is_correct = []
-    for result in results:
-        is_correct.append(is_correct_answer(result, judgellm_model=judgellm_model))
+    for i in tqdm(range(len(results)), desc="Judging ..."):
+        is_correct.append(is_correct_answer(results[i], judgellm_model=judgellm_model))
+        results[i]["judge_llm_prediction"] = is_correct[i]["judgellm"]
 
     exact_accuracy = sum(is_correct[i]["exact"] for i in range(len(is_correct))) / len(
         is_correct
@@ -265,7 +213,7 @@ def calculate_metrics(
         "fuzzy_accuracy": fuzzy_accuracy,
         "judgellm_accuracy": judgellm_accuracy,
         "num_samples": len(results),
-    }
+    }, results
 
 
 def analyze_results_by_category(

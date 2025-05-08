@@ -6,14 +6,17 @@ to various LLM providers through LiteLLM.
 """
 
 import asyncio
+import os
 
 import time
 import litellm
 from litellm import acompletion, batch_completion
 from tqdm import tqdm
 
-litellm.drop_params = True
 
+litellm.drop_params = True
+litellm.suppress_debug_info = True
+os.environ["LITELLM_LOG"] = "WARNING"
 
 class LLMModel:
     """Base class for LLM interfaces using LiteLLM."""

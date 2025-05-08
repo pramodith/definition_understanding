@@ -17,7 +17,6 @@ from tqdm import tqdm
 from evaluation.metrics import (
     analyze_results_by_category,
     calculate_metrics,
-    is_correct_answer,
     save_evaluation_results,
 )
 from evaluation.utils import EvaluationModels
@@ -72,7 +71,6 @@ async def evaluate_model_async(
     output_dir: str,
     num_samples: int | None = None,
     verbose: bool = False,
-    batch_size: int = 5,
     top_logprobs: int | None = None,
     is_local: bool = True,
 ) -> dict[str, float]:
@@ -88,7 +86,6 @@ async def evaluate_model_async(
         include_synonyms: Whether to consider synonyms as correct answers
         fuzzy_match: Whether to allow fuzzy matching
         verbose: Whether to print detailed information
-        batch_size: Number of prompts to process in each batch
         top_logprobs: Number of top log-probabilities to return
         is_local: Whether to use a local inference engine
 
@@ -160,7 +157,7 @@ async def evaluate_model_async(
 
     # Process results
     results = []
-    for i, prediction_list in tqdm(enumerate(responses), desc="Evaluating predictions"):
+    for i, prediction_list in enumerate(responses):
         # prediction_list is already a list of top-k predictions
         result = {
             "word": words[i],
@@ -170,13 +167,6 @@ async def evaluate_model_async(
             "prediction": prediction_list,
             "full_response": prediction_list,  # Optionally store the full list
         }
-        # Evaluate correctness and get judge_llm_prediction
-        correct_info = is_correct_answer(
-            result, judgellm_model=judgellm_model, return_judgellm_pred=True
-        )
-        # Add judge_llm_prediction if present
-        if "judge_llm_prediction" in correct_info:
-            result["judge_llm_prediction"] = correct_info["judge_llm_prediction"]
         results.append(result)
 
         if verbose:
@@ -193,7 +183,7 @@ async def evaluate_model_async(
             print("-" * 50)
 
     # Calculate metrics
-    metrics = calculate_metrics(results, judgellm_model)
+    metrics, results = calculate_metrics(results, judgellm_model)
     # topk_metrics = calculate_topk_metrics(
     #     results, topk_list=[1, 3, 5], judgellm_model=judgellm_model
     # )
@@ -230,7 +220,6 @@ def evaluate_model(
     output_dir: str,
     num_samples: int | None = None,
     verbose: bool = False,
-    batch_size: int = 20,
     top_logprobs: int | None = None,
     is_local: bool = True,
 ) -> dict[str, float]:
@@ -245,12 +234,11 @@ def evaluate_model(
         output_dir: Directory to save evaluation results
         num_samples: Number of samples to evaluate (None for all)
         verbose: Whether to print detailed information
-        batch_size: Number of prompts to process in each batch
         top_logprobs: Number of top log-probabilities to return
         is_local: Whether to use a local inference engine
 
     Returns:
-        Dictionary of evaluation metrics.........
+        Dictionary of evaluation metrics
     """
     return asyncio.run(
         evaluate_model_async(
@@ -260,7 +248,6 @@ def evaluate_model(
             output_dir=output_dir,
             num_samples=num_samples,
             verbose=verbose,
-            batch_size=batch_size,
             top_logprobs=top_logprobs,
             is_local=is_local,
         )
@@ -318,12 +305,6 @@ def main():
         "--verbose", action="store_true", help="Print detailed information"
     )
     parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=5,
-        help="Number of prompts to process in each batch",
-    )
-    parser.add_argument(
         "--top-logprobs",
         type=int,
         default=5,
@@ -338,16 +319,16 @@ def main():
         #     judgellm_model_name="gpt-4.1-2025-04-14",
         #     is_local=True,
         # ),
-        EvaluationModels(
-            model_name="meta-llama/Llama-3.2-3B-Instruct-Turbo",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
         # EvaluationModels(
-        #     model_name="Qwen/Qwen3-8B",
+        #     model_name="meta-llama/Llama-3.2-3B-Instruct-Turbo",
         #     judgellm_model_name="gpt-4.1-2025-04-14",
         #     is_local=True,
         # ),
+        EvaluationModels(
+            model_name="Qwen/Qwen3-8B",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=True,
+        ),
         # EvaluationModels(
         #     model_name="gpt-4.1-mini",
         #     judgellm_model_name="gpt-4.1-2025-04-14",
@@ -378,7 +359,6 @@ def main():
             output_dir=args.output_dir,
             num_samples=args.num_samples,
             verbose=args.verbose,
-            batch_size=args.batch_size,
             top_logprobs=args.top_logprobs,
             is_local=model.is_local,
         )
