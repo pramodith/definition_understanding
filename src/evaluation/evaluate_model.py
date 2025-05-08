@@ -184,11 +184,8 @@ async def evaluate_model_async(
 
     # Calculate metrics
     metrics, results = calculate_metrics(results, judgellm_model)
-    # topk_metrics = calculate_topk_metrics(
-    #     results, topk_list=[1, 3, 5], judgellm_model=judgellm_model
-    # )
-    # metrics.update(topk_metrics)
-
+    category_metrics = analyze_results_by_category(results)
+    
     # Save results
     os.makedirs(output_dir, exist_ok=True)
     model_name = model_name.split("/")[-1]
@@ -202,11 +199,7 @@ async def evaluate_model_async(
     print(f"Fuzzy accuracy: {metrics['fuzzy_accuracy']:.4f}")
     print(f"Judgellm accuracy: {metrics['judgellm_accuracy']:.4f}")
     print(f"Number of samples: {metrics['num_samples']}")
-    # for k in [1, 3, 5]:
-    #     print(f"accuracy@{k}: {metrics.get(f'accuracy@{k}', 0):.4f}")
-    #     print(f"fuzzy_accuracy@{k}: {metrics.get(f'fuzzy_accuracy@{k}', 0):.4f}")
-    #     print(f"judgellm_accuracy@{k}: {metrics.get(f'judgellm_accuracy@{k}', 0):.4f}")
-
+    
     return metrics
 
 

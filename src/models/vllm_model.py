@@ -43,7 +43,9 @@ class VLLMModel(LLMModel):
             top_logprobs=top_logprobs,
             **kwargs,
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, token=os.getenv("HF_TOKEN"))
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name, token=os.getenv("HF_TOKEN")
+        )
         self.tensor_parallel_size = tensor_parallel_size
         self.gpu_memory_utilization = gpu_memory_utilization
         self.llm = LLM(
@@ -51,7 +53,7 @@ class VLLMModel(LLMModel):
             tensor_parallel_size=self.tensor_parallel_size,
             gpu_memory_utilization=self.gpu_memory_utilization,
             enable_prefix_caching=True,
-            hf_token=os.getenv("HF_TOKEN")
+            hf_token=os.getenv("HF_TOKEN"),
         )
 
     def _convert_messages_to_prompt(self, messages: list[dict[str, str]]) -> str:
@@ -66,9 +68,7 @@ class VLLMModel(LLMModel):
         Returns a list of lists (top-k per prompt, but here just one per prompt).
         """
         sampling_params = SamplingParams(
-            temperature=0.0,
-            max_tokens=self.max_tokens,
-            top_p=0.01
+            temperature=0.0, max_tokens=self.max_tokens, top_p=0.01
         )
         # Convert each message list to a prompt string
         prompts = [self._convert_messages_to_prompt(msgs) for msgs in prompts_messages]

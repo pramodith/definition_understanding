@@ -91,7 +91,6 @@ def is_correct_answer(
     return is_correct
 
 
-
 def judge_llm_equivalence(
     prediction: str, target: str, definition: str, llm_model: LLMModel
 ) -> bool:
@@ -194,15 +193,14 @@ def calculate_metrics(
     fuzzy_accuracy = 0
     judgellm_accuracy = 0
     for i in tqdm(range(len(results)), desc="Judging ..."):
-
         if "exact" not in results[i]:
             judgement = is_correct_answer(results[i], judgellm_model=judgellm_model)
-        
+
             results[i]["exact"] = judgement["exact"]
             results[i]["synonym"] = judgement["synonym"]
             results[i]["fuzzy"] = judgement["fuzzy"]
             results[i]["judge_llm_prediction"] = judgement["judgellm"]
-        
+
         exact_accuracy += results[i]["exact"]
         synonym_accuracy += results[i]["synonym"]
         fuzzy_accuracy += results[i]["fuzzy"]

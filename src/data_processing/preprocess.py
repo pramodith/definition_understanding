@@ -70,14 +70,3 @@ def create_evaluation_dataset(
     print(
         f"Evaluation dataset created with {len(df)} entries and saved to {output_file}"
     )
-
-
-if __name__ == "__main__":
-    # Example usage
-    data_dir = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"
-    )
-    input_file = os.path.join(data_dir, "processed_dictionary.csv")
-    output_file = os.path.join(data_dir, "evaluation_dataset.csv")
-
-    create_evaluation_dataset(input_file, output_file)

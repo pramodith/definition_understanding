@@ -84,18 +84,19 @@ def plot_model_performance(df, metrics=None, save_path=None):
         metrics (list of str, optional): Metrics to plot. Defaults to common accuracy metrics.
         save_path (str, optional): If provided, saves the plot to this path.
     """
-    import matplotlib.pyplot as plt
     import math
 
     # Define default metrics if not provided
     if metrics is None:
         metrics = [
-            m for m in [
-                'exact_accuracy',
-                'judgellm_accuracy',
-                'fuzzy_accuracy',
-                'synonym_accuracy'
-            ] if m in df.columns
+            m
+            for m in [
+                "exact_accuracy",
+                "judgellm_accuracy",
+                "fuzzy_accuracy",
+                "synonym_accuracy",
+            ]
+            if m in df.columns
         ]
     n_metrics = len(metrics)
     n_cols = 2
@@ -105,15 +106,15 @@ def plot_model_performance(df, metrics=None, save_path=None):
 
     for idx, metric in enumerate(metrics):
         ax = axes[idx]
-        ax.bar(df['model'], df[metric], color='skyblue')
-        ax.set_title(metric.replace('_', ' ').title())
-        ax.set_ylabel('Score')
-        ax.set_xlabel('Model')
+        ax.bar(df["model"], df[metric], color="skyblue")
+        ax.set_title(metric.replace("_", " ").title())
+        ax.set_ylabel("Score")
+        ax.set_xlabel("Model")
         ax.set_ylim(0, 1)
         for tick in ax.get_xticklabels():
             tick.set_rotation(15)
         for i, v in enumerate(df[metric]):
-            ax.text(i, v + 0.01, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+            ax.text(i, v + 0.01, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
 
     # Hide any unused subplots
     for j in range(idx + 1, len(axes)):
@@ -121,11 +122,10 @@ def plot_model_performance(df, metrics=None, save_path=None):
 
     fig.tight_layout()
     if save_path:
-        plt.savefig(save_path, bbox_inches='tight')
+        plt.savefig(save_path, bbox_inches="tight")
         print(f"Saved model performance plots to {save_path}")
     else:
         plt.show()
-
 
     df_melt = df.melt(
         id_vars=["model"], value_vars=metrics, var_name="metric", value_name="score"

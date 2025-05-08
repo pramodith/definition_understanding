@@ -167,7 +167,9 @@ def test_calculate_metrics():
     for res in results:
         for key in ["exact", "synonym", "fuzzy", "judge_llm_prediction"]:
             assert key in res, f"Missing key {key} in result {res}"
-            assert isinstance(res[key], (bool, int)), f"Key {key} should be bool or int, got {type(res[key])}"
+            assert isinstance(res[key], bool), (
+                f"Key {key} should be bool got {type(res[key])}"
+            )
 
     assert metrics["exact_accuracy"] == 0.5  # 2 out of 4 correct
     assert metrics["synonym_accuracy"] == 0.75

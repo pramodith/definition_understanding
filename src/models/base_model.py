@@ -7,16 +7,16 @@ to various LLM providers through LiteLLM.
 
 import asyncio
 import os
-
 import time
+
 import litellm
 from litellm import acompletion, batch_completion
 from tqdm import tqdm
 
-
 litellm.drop_params = True
 litellm.suppress_debug_info = True
 os.environ["LITELLM_LOG"] = "WARNING"
+
 
 class LLMModel:
     """Base class for LLM interfaces using LiteLLM."""
@@ -54,7 +54,7 @@ class LLMModel:
         self.max_requests_per_minute = None
 
         self._set_time_delay()
-    
+
     def _set_time_delay(self):
         if self.model_name.startswith("anthropic/claude-3-7"):
             self.delay = 1
@@ -63,7 +63,7 @@ class LLMModel:
         else:
             self.delay = 0.5
             self.batch_size = 8
-            
+
     def _extract_topk_tokens_from_logprobs(self, choice) -> list[str]:
         """
         Helper to extract top-k tokens from a LiteLLM choice logprobs dict.
@@ -115,7 +115,7 @@ class LLMModel:
                 topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
             else:
                 topk_tokens = [choice.message.content.strip()]
-            
+
             time.sleep(self.delay)
             return topk_tokens
         except Exception as e:
@@ -204,13 +204,13 @@ class LLMModel:
         start_time = asyncio.get_event_loop().time()
 
         for i in tqdm(
-            range(0, len(prompts_messages), self.batch_size), 
-            desc="Processing batch", 
-            total=len(prompts_messages)//self.batch_size
-            ):
+            range(0, len(prompts_messages), self.batch_size),
+            desc="Processing batch",
+            total=len(prompts_messages) // self.batch_size,
+        ):
             batch = prompts_messages[i : i + self.batch_size]
             batch_tasks = [self.agenerate(prompt_message) for prompt_message in batch]
-            
+
             try:
                 batch_results = await asyncio.gather(
                     *batch_tasks, return_exceptions=True
@@ -224,20 +224,26 @@ class LLMModel:
                 results.extend(processed_results)
 
                 end_time = asyncio.get_event_loop().time()
-                
+
                 # Dynamic delay based on max requests per minute
                 if self.max_requests_per_minute is not None:
                     elapsed_time = end_time - start_time
                     elapsed_minutes = elapsed_time / 60
-                    max_number_of_permitted_requests = elapsed_minutes * self.max_requests_per_minute
+                    max_number_of_permitted_requests = (
+                        elapsed_minutes * self.max_requests_per_minute
+                    )
                     if len(results) > max_number_of_permitted_requests:
-                        exceeded_requests = len(results) - max_number_of_permitted_requests
-                        dynamic_delay = exceeded_requests * (60 / self.max_requests_per_minute)
+                        exceeded_requests = (
+                            len(results) - max_number_of_permitted_requests
+                        )
+                        dynamic_delay = exceeded_requests * (
+                            60 / self.max_requests_per_minute
+                        )
                         await asyncio.sleep(dynamic_delay)
-                        
+
                 else:
                     await asyncio.sleep(self.delay)
-            
+
             except Exception as e:
                 print(f"Error in batch processing from {self.model_name}: {e}")
                 results.extend([[f"Error: {str(e)}"]] * len(batch))
