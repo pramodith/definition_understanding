@@ -7,8 +7,10 @@ to various LLM providers through LiteLLM.
 
 import asyncio
 
+import time
 import litellm
 from litellm import acompletion, batch_completion
+from tqdm import tqdm
 
 litellm.drop_params = True
 
@@ -46,7 +48,19 @@ class LLMModel:
         self.kwargs = kwargs
         # The lower this value the more likely we get greedy sampling
         self.top_p = 0.001
+        self.max_requests_per_minute = None
 
+        self._set_time_delay()
+    
+    def _set_time_delay(self):
+        if self.model_name.startswith("anthropic/claude-3-7"):
+            self.delay = 1
+            self.batch_size = 4
+            self.max_requests_per_minute = 50
+        else:
+            self.delay = 0.5
+            self.batch_size = 8
+            
     def _extract_topk_tokens_from_logprobs(self, choice) -> list[str]:
         """
         Helper to extract top-k tokens from a LiteLLM choice logprobs dict.
@@ -98,6 +112,8 @@ class LLMModel:
                 topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
             else:
                 topk_tokens = [choice.message.content.strip()]
+            
+            time.sleep(self.delay)
             return topk_tokens
         except Exception as e:
             print(f"Error generating response from {self.model_name}: {e}")
@@ -167,8 +183,6 @@ class LLMModel:
     async def abatch_generate(
         self,
         prompts_messages: list[list[dict[str, str]]],
-        batch_size: int = 20,
-        delay: float = 0.5,
     ) -> list[list[str]]:
         """
         Generate responses for multiple prompts asynchronously in batches using LiteLLM and extract top-k predicted tokens.
@@ -184,9 +198,16 @@ class LLMModel:
             List of lists of top-k predicted tokens/words (best guess first)
         """
         results = []
-        for i in range(0, len(prompts_messages), batch_size):
-            batch = prompts_messages[i : i + batch_size]
+        start_time = asyncio.get_event_loop().time()
+
+        for i in tqdm(
+            range(0, len(prompts_messages), self.batch_size), 
+            desc="Processing batch", 
+            total=len(prompts_messages)//self.batch_size
+            ):
+            batch = prompts_messages[i : i + self.batch_size]
             batch_tasks = [self.agenerate(prompt_message) for prompt_message in batch]
+            
             try:
                 batch_results = await asyncio.gather(
                     *batch_tasks, return_exceptions=True
@@ -198,10 +219,26 @@ class LLMModel:
                     else:
                         processed_results.append(res)
                 results.extend(processed_results)
+
+                end_time = asyncio.get_event_loop().time()
+                
+                # Dynamic delay based on max requests per minute
+                if self.max_requests_per_minute is not None:
+                    elapsed_time = end_time - start_time
+                    elapsed_minutes = elapsed_time / 60
+                    max_number_of_permitted_requests = elapsed_minutes * self.max_requests_per_minute
+                    if len(results) > max_number_of_permitted_requests:
+                        exceeded_requests = len(results) - max_number_of_permitted_requests
+                        dynamic_delay = exceeded_requests * (60 / self.max_requests_per_minute)
+                        await asyncio.sleep(dynamic_delay)
+                        
+                else:
+                    await asyncio.sleep(self.delay)
+            
             except Exception as e:
                 print(f"Error in batch processing from {self.model_name}: {e}")
                 results.extend([[f"Error: {str(e)}"]] * len(batch))
-            await asyncio.sleep(delay)
+
         return results
 
     @property
