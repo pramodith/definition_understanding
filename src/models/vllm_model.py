@@ -58,11 +58,11 @@ class VLLMModel(LLMModel):
 
     def _convert_messages_to_prompt(self, messages: list[dict[str, str]]) -> str:
         tokenized_messages = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
+            messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
         )
         return tokenized_messages
 
-    def batch_generate(self, prompts_messages: list[list[dict]], batch_size: int = 5):
+    def batch_generate(self, prompts_messages: list[list[dict]]):
         """
         Batch inference for a list of prompt_messages (each is a list of dicts).
         Returns a list of lists (top-k per prompt, but here just one per prompt).
