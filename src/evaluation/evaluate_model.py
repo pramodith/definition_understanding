@@ -120,7 +120,7 @@ async def evaluate_model_async(
     prompts_messages = []
 
     # Process each row to extract data and create prompts
-    for _, row in df.iterrows():
+    for _, row in tqdm(df.iterrows(), desc="Number of definitions processed"):
         word = row["word"]
         definition = row["definition"]
         part_of_speech = row.get("part_of_speech", None)
@@ -333,16 +333,16 @@ def main():
     args = parser.parse_args()
 
     model_list = [
-        EvaluationModels(
-            model_name="Qwen/Qwen2.5-1.5B-Instruct",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=True,
-        ),
         # EvaluationModels(
-        #     model_name="meta-llama/Llama-3.2-3B-Instruct",
+        #     model_name="Qwen/Qwen2.5-1.5B-Instruct",
         #     judgellm_model_name="gpt-4.1-2025-04-14",
         #     is_local=True,
         # ),
+        EvaluationModels(
+            model_name="meta-llama/Llama-3.2-3B-Instruct-Turbo",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
         # EvaluationModels(
         #     model_name="Qwen/Qwen3-8B",
         #     judgellm_model_name="gpt-4.1-2025-04-14",
