@@ -154,9 +154,9 @@ async def evaluate_model_async(
 
     # Process all prompts in batches asynchronously
     if is_local:
-        responses = model.batch_generate(prompts_messages, batch_size=batch_size)
+        responses = model.batch_generate(prompts_messages)
     else:
-        responses = await model.abatch_generate(prompts_messages, batch_size=batch_size)
+        responses = await model.abatch_generate(prompts_messages)
 
     # Process results
     results = []
@@ -338,36 +338,36 @@ def main():
             judgellm_model_name="gpt-4.1-2025-04-14",
             is_local=True,
         ),
-        EvaluationModels(
-            model_name="meta-llama/Llama-3.2-3B-Instruct-Turbo",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="Qwen/Qwen3-8B",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=True,
-        ),
-        EvaluationModels(
-            model_name="gpt-4.1-mini",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="gpt-4.1-nano",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="gpt-4.1",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="claude-3-7-sonnet-20250219",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
+        # EvaluationModels(
+        #     model_name="meta-llama/Llama-3.2-3B-Instruct",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=True,
+        # ),
+        # EvaluationModels(
+        #     model_name="Qwen/Qwen3-8B",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=True,
+        # ),
+        # EvaluationModels(
+        #     model_name="gpt-4.1-mini",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
+        # EvaluationModels(
+        #     model_name="gpt-4.1-nano",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
+        # EvaluationModels(
+        #     model_name="gpt-4.1",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
+        # EvaluationModels(
+        #     model_name="claude-3-7-sonnet-20250219",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
     ]
 
     for model in model_list:

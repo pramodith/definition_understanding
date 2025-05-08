@@ -48,7 +48,6 @@ class VLLMModel(LLMModel):
             model=self.model_name,
             tensor_parallel_size=self.tensor_parallel_size,
             gpu_memory_utilization=self.gpu_memory_utilization,
-            dtype="float32",
             enable_prefix_caching=True,
         )
 
