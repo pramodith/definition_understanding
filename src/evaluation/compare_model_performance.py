@@ -36,7 +36,6 @@ def load_metrics_from_file(filepath, model_name):
         dict: Dictionary of overall metrics with model name included.
     """
     with open(filepath, encoding="utf-8") as f:
-
         print(f"Reading results of {model_name}")
         data = json.load(f)
     metrics = data.get("overall_metrics", {})

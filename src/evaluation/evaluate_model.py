@@ -183,9 +183,9 @@ async def evaluate_model_async(
             print("-" * 50)
 
     # Calculate metrics
-    metrics, results = calculate_metrics(results, judgellm_model)
-    category_metrics = analyze_results_by_category(results)
-    
+    metrics, results = await calculate_metrics(results, judgellm_model)
+    category_metrics = await analyze_results_by_category(results)
+
     # Save results
     os.makedirs(output_dir, exist_ok=True)
     model_name = model_name.split("/")[-1]
@@ -199,7 +199,7 @@ async def evaluate_model_async(
     print(f"Fuzzy accuracy: {metrics['fuzzy_accuracy']:.4f}")
     print(f"Judgellm accuracy: {metrics['judgellm_accuracy']:.4f}")
     print(f"Number of samples: {metrics['num_samples']}")
-    
+
     return metrics
 
 
@@ -289,7 +289,7 @@ def main():
         type=int,
         required=False,
         help="Number of samples to evaluate (None for all)",
-        default=None,
+        default=10,
     )
     parser.add_argument(
         "--verbose", action="store_true", help="Print detailed information"
@@ -314,31 +314,31 @@ def main():
         #     judgellm_model_name="gpt-4.1-2025-04-14",
         #     is_local=True,
         # ),
+        # EvaluationModels(
+        #     model_name="Qwen/Qwen3-8B",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=True,
+        # ),
         EvaluationModels(
-            model_name="Qwen/Qwen3-8B",
+            model_name="gpt-4.1-nano",
             judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=True,
+            is_local=False,
         ),
-        # EvaluationModels(
-        #     model_name="gpt-4.1-mini",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
-        # EvaluationModels(
-        #     model_name="gpt-4.1-nano",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
-        # EvaluationModels(
-        #     model_name="gpt-4.1",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
-        # EvaluationModels(
-        #     model_name="claude-3-7-sonnet-20250219",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
+        EvaluationModels(
+            model_name="gpt-4.1-mini",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+        EvaluationModels(
+            model_name="gpt-4.1",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+        EvaluationModels(
+            model_name="claude-3-7-sonnet-20250219",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
     ]
 
     for model in model_list:

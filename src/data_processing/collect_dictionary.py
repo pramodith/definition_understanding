@@ -151,12 +151,14 @@ def fetch_medical_definitions(
             synonyms = entry.get("meta", {}).get("syns", [])
             synonyms.extend(entry.get("meta", {}).get("stems", []))
             actual_term = entry.get("hwi", {}).get("hw", "").replace("*", "")
-            existing_data[word].append({
-                "definition": definition,
-                "part_of_speech": part_of_speech,
-                "synonyms": synonyms,
-                "actual_term": actual_term,
-            })
+            existing_data[word].append(
+                {
+                    "definition": definition,
+                    "part_of_speech": part_of_speech,
+                    "synonyms": synonyms,
+                    "actual_term": actual_term,
+                }
+            )
         else:
             suggested_words = data
             for suggested_word in suggested_words:
@@ -270,7 +272,9 @@ def collect_dictionary_data(
             if api == "free_dictionary":
                 definition_data = fetch_definition_from_free_dictionary(word)
             elif api == "medical":
-                existing_data = fetch_medical_definitions(word, existing_data, delay, max_words)
+                existing_data = fetch_medical_definitions(
+                    word, existing_data, delay, max_words
+                )
             else:  # words_api
                 definition_data = fetch_definition_from_words_api(word)
 
@@ -288,9 +292,7 @@ def collect_dictionary_data(
     print(f"Dictionary data collected and saved to {output_file}")
 
 
-def parse_medical_entry(
-    data, min_definition_length=50, max_definition_length=200
-):
+def parse_medical_entry(data, min_definition_length=50, max_definition_length=200):
     """
     Parse medical dictionary entries, filtering by definition length and synonym presence.
 
@@ -308,10 +310,13 @@ def parse_medical_entry(
             definition = entry["definition"].strip()
             synonyms = [entry.get("actual_term")] + entry.get("synonyms", [])
 
-            # Make sure the definition doesn't contain any of the synonyms 
+            # Make sure the definition doesn't contain any of the synonyms
             # and the definitions is within the min and max length
-            if min_definition_length <= len(definition) <= max_definition_length and \
-                not any(synonym in definition for synonym in synonyms):
+            if min_definition_length <= len(
+                definition
+            ) <= max_definition_length and not any(
+                synonym in definition for synonym in synonyms
+            ):
                 results.append(
                     {
                         "word": entry.get("actual_term", ""),
@@ -435,9 +440,7 @@ def process_dictionary_data(
 
         if api == "medical":
             processed_data.extend(
-                parse_medical_entry(
-                    data, min_definition_length, max_definition_length
-                )
+                parse_medical_entry(data, min_definition_length, max_definition_length)
             )
         elif api == "free_dictionary":
             processed_data.extend(

@@ -60,6 +60,9 @@ class LLMModel:
             self.delay = 1
             self.batch_size = 4
             self.max_requests_per_minute = 50
+        elif self.model_name == "openai/gpt-4.1-2025-04-14":
+            self.delay = 2
+            self.batch_size = 4
         else:
             self.delay = 0.5
             self.batch_size = 8

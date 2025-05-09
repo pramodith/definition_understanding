@@ -4,6 +4,8 @@ Tests for the evaluation metrics module.
 This module contains tests for the metrics used to evaluate LLM performance.
 """
 
+import pytest
+
 from evaluation.metrics import (
     analyze_results_by_category,
     calculate_metrics,
@@ -73,6 +75,9 @@ def test_is_correct_answer():
         is_correct_answer({"prediction": "banana", "word": "apple"})["fuzzy"] is False
     )
 
+    # Test judgellm key is present
+    assert "judgellm" in is_correct_answer({"prediction": "apple", "word": "apple"})
+
     # Test with list of predictions (top-k)
     assert (
         is_correct_answer({"prediction": ["apple", "banana"], "word": "apple"})["exact"]
@@ -131,7 +136,8 @@ def test_extract_predicted_word():
     assert extract_predicted_word("") == ""
 
 
-def test_calculate_metrics():
+@pytest.mark.asyncio
+async def test_calculate_metrics():
     """Test function for calculating evaluation metrics."""
     # Create test results (predictions as lists for top-k)
     results = [
@@ -161,11 +167,11 @@ def test_calculate_metrics():
         },
     ]
 
-    metrics, results = calculate_metrics(results)
+    metrics, results = await calculate_metrics(results)
 
     # Assert all updated results have required keys and correct types
     for res in results:
-        for key in ["exact", "synonym", "fuzzy", "judge_llm_prediction"]:
+        for key in ["exact", "synonym", "fuzzy", "judgellm"]:
             assert key in res, f"Missing key {key} in result {res}"
             assert isinstance(res[key], bool), (
                 f"Key {key} should be bool got {type(res[key])}"
@@ -176,6 +182,7 @@ def test_calculate_metrics():
     assert metrics["fuzzy_accuracy"] == 0.5
     assert metrics["num_samples"] == 4
 
+    # Test topk metrics using calculate_topk_metrics
     results_topk = [
         {
             "word": "apple",
@@ -202,7 +209,7 @@ def test_calculate_metrics():
             "synonyms": ["canine"],
         },
     ]
-    metrics_topk, _ = calculate_metrics(results_topk)
+    metrics_topk, _ = await calculate_metrics(results_topk)
     assert (
         metrics_topk["exact_accuracy"] == 0.5
     )  # 3 out of 4 have the correct word in top-k
@@ -211,7 +218,8 @@ def test_calculate_metrics():
     )  # 4 out of 4 have correct or synonym in top-k
 
 
-def test_analyze_results_by_category():
+@pytest.mark.asyncio
+async def test_analyze_results_by_category():
     """Test function for analyzing results by category."""
     # Create test results with categories
     results = [
@@ -221,10 +229,10 @@ def test_analyze_results_by_category():
             "prediction": ["apple"],
             "part_of_speech": "noun",
             "synonyms": [],
-            "exact": 1,
-            "synonym": 0,
-            "fuzzy": 0,
-            "judge_llm_prediction": 1,
+            "exact": True,
+            "synonym": False,
+            "fuzzy": False,
+            "judgellm": True,
         },
         {
             "word": "banana",
@@ -232,10 +240,10 @@ def test_analyze_results_by_category():
             "prediction": ["banana"],
             "part_of_speech": "noun",
             "synonyms": [],
-            "exact": 1,
-            "synonym": 0,
-            "fuzzy": 0,
-            "judge_llm_prediction": 1,
+            "exact": True,
+            "synonym": False,
+            "fuzzy": False,
+            "judgellm": True,
         },
         {
             "word": "run",
@@ -243,10 +251,10 @@ def test_analyze_results_by_category():
             "prediction": ["sprint"],
             "part_of_speech": "verb",
             "synonyms": ["sprint"],
-            "exact": 0,
-            "synonym": 1,
-            "fuzzy": 0,
-            "judge_llm_prediction": 1,
+            "exact": False,
+            "synonym": True,
+            "fuzzy": False,
+            "judgellm": True,
         },
         {
             "word": "happy",
@@ -254,17 +262,17 @@ def test_analyze_results_by_category():
             "prediction": ["sad"],
             "part_of_speech": "adjective",
             "synonyms": [],
-            "exact": 0,
-            "synonym": 0,
-            "fuzzy": 0,
-            "judge_llm_prediction": 0,
+            "exact": False,
+            "synonym": False,
+            "fuzzy": False,
+            "judgellm": False,
         },
     ]
 
     # Test analysis by part of speech
-    category_metrics = analyze_results_by_category(results)
+    category_metrics = await analyze_results_by_category(results)
 
-    # Check that categories were created correctly
+    # Check that categories are structured correctly
     assert "by_part_of_speech" in category_metrics
     assert "by_word_length" in category_metrics
 
@@ -274,7 +282,7 @@ def test_analyze_results_by_category():
     assert "verb" in pos_metrics
     assert "adjective" in pos_metrics
 
-    # Each value should be a metrics dict (not a tuple)
+    # Each value should be a metrics dict
     assert isinstance(pos_metrics["noun"], dict)
     assert isinstance(pos_metrics["verb"], dict)
     assert isinstance(pos_metrics["adjective"], dict)

@@ -249,15 +249,15 @@ def test_get_wikipedia_medical_glossary_word_list(mock_get):
 
 
 def test_parse_medical_entry():
-    word = "aspirin"
     data = [
         {
             "definition": "A medication used to reduce pain, fever, or inflammation.",
             "part_of_speech": "noun",
             "synonyms": ["painkiller", "painfree", "abs"],
+            "actual_term": "aspirin",
         }
     ]
-    entries = parse_medical_entry(word, data)
+    entries = parse_medical_entry(data)
     assert isinstance(entries, list)
     assert len(entries) == 1
     assert entries[0]["word"] == "aspirin"
