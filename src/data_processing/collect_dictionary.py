@@ -145,21 +145,18 @@ def fetch_medical_definitions(
     if response.status_code == 200:
         data = response.json()
         if isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
-            for entry in data:
-                definition = entry.get("shortdef", [""])[0]
-                part_of_speech = entry.get("fl", "")
-                synonyms = entry.get("meta", {}).get("syns", [])
-                synonyms.extend(entry.get("meta", {}).get("stems", []))
-
-                existing_data[word].append(
-                    {
-                        "definition": definition,
-                        "part_of_speech": part_of_speech,
-                        "synonyms": synonyms,
-                    }
-                )
-                if max_words and len(existing_data) >= max_words:
-                    break
+            entry = data[0]
+            definition = entry.get("shortdef", [""])[0]
+            part_of_speech = entry.get("fl", "")
+            synonyms = entry.get("meta", {}).get("syns", [])
+            synonyms.extend(entry.get("meta", {}).get("stems", []))
+            actual_term = entry.get("hwi", {}).get("hw", "").replace("*", "")
+            existing_data[word].append({
+                "definition": definition,
+                "part_of_speech": part_of_speech,
+                "synonyms": synonyms,
+                "actual_term": actual_term,
+            })
         else:
             suggested_words = data
             for suggested_word in suggested_words:
@@ -273,7 +270,7 @@ def collect_dictionary_data(
             if api == "free_dictionary":
                 definition_data = fetch_definition_from_free_dictionary(word)
             elif api == "medical":
-                existing_data = fetch_medical_definitions(word, existing_data, delay)
+                existing_data = fetch_medical_definitions(word, existing_data, delay, max_words)
             else:  # words_api
                 definition_data = fetch_definition_from_words_api(word)
 
@@ -292,16 +289,32 @@ def collect_dictionary_data(
 
 
 def parse_medical_entry(
-    word, data, min_definition_length=50, max_definition_length=200
+    data, min_definition_length=50, max_definition_length=200
 ):
+    """
+    Parse medical dictionary entries, filtering by definition length and synonym presence.
+
+    Args:
+        data: List of dictionary entries (each entry is a dict).
+        min_definition_length: Minimum allowed length for definitions.
+        max_definition_length: Maximum allowed length for definitions.
+
+    Returns:
+        List of parsed entries (dicts) with keys 'word', 'definition', 'part_of_speech', 'synonyms'.
+    """
     results = []
     for entry in data:
         if isinstance(entry, dict) and "definition" in entry:
             definition = entry["definition"].strip()
-            if min_definition_length <= len(definition) <= max_definition_length:
+            synonyms = [entry.get("actual_term")] + entry.get("synonyms", [])
+
+            # Make sure the definition doesn't contain any of the synonyms 
+            # and the definitions is within the min and max length
+            if min_definition_length <= len(definition) <= max_definition_length and \
+                not any(synonym in definition for synonym in synonyms):
                 results.append(
                     {
-                        "word": word,
+                        "word": entry.get("actual_term", ""),
                         "definition": definition,
                         "part_of_speech": entry.get("part_of_speech", ""),
                         "synonyms": entry.get("synonyms", []),
@@ -313,6 +326,18 @@ def parse_medical_entry(
 def parse_free_dictionary_entry(
     word, data, min_definition_length=10, max_definition_length=1000
 ):
+    """
+    Parse entries from the Free Dictionary API, filtering by definition length.
+
+    Args:
+        word: The word being defined.
+        data: API response data (list of dicts).
+        min_definition_length: Minimum allowed length for definitions.
+        max_definition_length: Maximum allowed length for definitions.
+
+    Returns:
+        List of parsed entries (dicts) with keys 'word', 'definition', 'part_of_speech', 'synonyms', 'antonyms'.
+    """
     entries = []
     if isinstance(data, list):
         for entry in data:
@@ -348,6 +373,18 @@ def parse_free_dictionary_entry(
 def parse_wordsapi_entry(
     word, data, min_definition_length=50, max_definition_length=200
 ):
+    """
+    Parse entries from WordsAPI, filtering by definition length.
+
+    Args:
+        word: The word being defined.
+        data: API response data (dict).
+        min_definition_length: Minimum allowed length for definitions.
+        max_definition_length: Maximum allowed length for definitions.
+
+    Returns:
+        List of parsed entries (dicts) with keys 'word', 'definition', 'part_of_speech', 'synonyms', 'antonyms'.
+    """
     entries = []
     if isinstance(data, dict) and "definitions" in data:
         for definition_item in data["definitions"]:
@@ -399,7 +436,7 @@ def process_dictionary_data(
         if api == "medical":
             processed_data.extend(
                 parse_medical_entry(
-                    word, data, min_definition_length, max_definition_length
+                    data, min_definition_length, max_definition_length
                 )
             )
         elif api == "free_dictionary":
@@ -416,7 +453,7 @@ def process_dictionary_data(
             )
 
     # Convert to DataFrame and save
-    df = pd.DataFrame(processed_data)
+    df = pd.DataFrame(processed_data).drop_duplicates(subset="word")
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     df.to_csv(output_file, index=False)
 
@@ -433,7 +470,7 @@ def main():
     parser.add_argument(
         "--num-words",
         type=int,
-        default=2000,
+        default=5000,
         help="Number of words to fetch if downloading",
     )
     parser.add_argument(
@@ -450,7 +487,7 @@ def main():
         help="API to use for fetching definitions",
     )
     parser.add_argument(
-        "--max-words", type=int, default=1000, help="Maximum number of words to process"
+        "--max-words", type=int, default=3000, help="Maximum number of words to process"
     )
     parser.add_argument(
         "--delay", type=float, default=0.5, help="Delay between API requests"
