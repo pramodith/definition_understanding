@@ -221,7 +221,7 @@ async def calculate_metrics(
 
         judgellm_accuracy = sum(
             results[i]["judgellm"] for i in range(len(results))
-        ) / len(results)
+        )
 
     return {
         "exact_accuracy": exact_accuracy / len(results),

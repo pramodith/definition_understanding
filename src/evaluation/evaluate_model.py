@@ -289,7 +289,7 @@ def main():
         type=int,
         required=False,
         help="Number of samples to evaluate (None for all)",
-        default=10,
+        default=None,
     )
     parser.add_argument(
         "--verbose", action="store_true", help="Print detailed information"

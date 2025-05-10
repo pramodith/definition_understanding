@@ -52,6 +52,7 @@ class LLMModel:
         # The lower this value the more likely we get greedy sampling
         self.top_p = 0.001
         self.max_requests_per_minute = None
+        self.tokens_per_minute = None
 
         self._set_time_delay()
 
@@ -63,6 +64,7 @@ class LLMModel:
         elif self.model_name == "openai/gpt-4.1-2025-04-14":
             self.delay = 2
             self.batch_size = 4
+            self.tokens_per_minute = 30000
         else:
             self.delay = 0.5
             self.batch_size = 8
@@ -114,13 +116,14 @@ class LLMModel:
                 **self.kwargs,
             )
             choice = response.choices[0]
+            total_tokens = response.usage.total_tokens
             if self.top_logprobs is not None:
                 topk_tokens = self._extract_topk_tokens_from_logprobs(choice)
             else:
                 topk_tokens = [choice.message.content.strip()]
 
             time.sleep(self.delay)
-            return topk_tokens
+            return topk_tokens, total_tokens
         except Exception as e:
             print(f"Error generating response from {self.model_name}: {e}")
             return [f"Error: {str(e)}"]
@@ -147,7 +150,8 @@ class LLMModel:
                 **self.kwargs,
             )
             choice = response.choices[0]
-            return [choice.message.content.strip()]
+            total_tokens = response.usage.total_tokens
+            return [choice.message.content.strip(), total_tokens]
         except Exception as e:
             print(f"Error generating async response from {self.model_name}: {e}")
             print(response)
@@ -205,6 +209,7 @@ class LLMModel:
         """
         results = []
         start_time = asyncio.get_event_loop().time()
+        total_tokens_used = 0
 
         for i in tqdm(
             range(0, len(prompts_messages), self.batch_size),
@@ -219,19 +224,31 @@ class LLMModel:
                     *batch_tasks, return_exceptions=True
                 )
                 processed_results = []
+                batch_tokens = 0
+
                 for res in batch_results:
                     if isinstance(res, Exception):
                         processed_results.append([f"Error: {str(res)}"])
                     else:
-                        processed_results.append(res)
+                        # Extract response content and token count
+                        if len(res) > 1 and isinstance(res[1], int):
+                            response_content = res[0]
+                            token_count = res[1]
+                            batch_tokens += token_count
+                            processed_results.append([response_content])
+                        else:
+                            # Handle case where token count is not available
+                            processed_results.append(res)
+
                 results.extend(processed_results)
+                total_tokens_used += batch_tokens
 
                 end_time = asyncio.get_event_loop().time()
+                elapsed_time = end_time - start_time
+                elapsed_minutes = elapsed_time / 60
 
                 # Dynamic delay based on max requests per minute
                 if self.max_requests_per_minute is not None:
-                    elapsed_time = end_time - start_time
-                    elapsed_minutes = elapsed_time / 60
                     max_number_of_permitted_requests = (
                         elapsed_minutes * self.max_requests_per_minute
                     )
@@ -244,7 +261,19 @@ class LLMModel:
                         )
                         await asyncio.sleep(dynamic_delay)
 
-                else:
+                # Dynamic delay based on tokens per minute
+                if self.tokens_per_minute is not None:
+                    max_permitted_tokens = elapsed_minutes * self.tokens_per_minute
+                    if total_tokens_used > max_permitted_tokens:
+                        exceeded_tokens = total_tokens_used - max_permitted_tokens
+                        token_delay = exceeded_tokens * (60 / self.tokens_per_minute)
+                        print(
+                            f"Rate limiting: Sleeping for {token_delay:.2f}s due to token limit"
+                        )
+                        await asyncio.sleep(token_delay)
+
+                # If no rate limits are set, use the default delay
+                if self.max_requests_per_minute is None and self.tokens_per_minute is None:
                     await asyncio.sleep(self.delay)
 
             except Exception as e:
