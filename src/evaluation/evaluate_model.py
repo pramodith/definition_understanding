@@ -319,26 +319,26 @@ def main():
         #     judgellm_model_name="gpt-4.1-2025-04-14",
         #     is_local=True,
         # ),
-        EvaluationModels(
-            model_name="gpt-4.1-nano",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="gpt-4.1-mini",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="gpt-4.1",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="claude-3-7-sonnet-20250219",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
+        # EvaluationModels(
+        #     model_name="gpt-4.1-nano",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
+        # EvaluationModels(
+        #     model_name="gpt-4.1-mini",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
+        # EvaluationModels(
+        #     model_name="gpt-4.1",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
+        # EvaluationModels(
+        #     model_name="claude-3-7-sonnet-20250219",
+        #     judgellm_model_name="gpt-4.1-2025-04-14",
+        #     is_local=False,
+        # ),
         EvaluationModels(
             model_name="gemini-2.0-flash",
             judgellm_model_name="gpt-4.1-2025-04-14",

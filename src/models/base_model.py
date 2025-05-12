@@ -139,16 +139,26 @@ class LLMModel:
             List of top-k predicted tokens/words (best guess first)
         """
         try:
-            response = await acompletion(
+            if "gemini" in self.model_name:
+                response = await acompletion(
                 model=self.model_name,
                 messages=prompt_messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                logprobs=self.logprobs,
-                top_logprobs=self.top_logprobs,
                 top_p=self.top_p,
                 **self.kwargs,
             )
+            else:
+                response = await acompletion(
+                    model=self.model_name,
+                    messages=prompt_messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    logprobs=self.logprobs,
+                    top_logprobs=self.top_logprobs,
+                    top_p=self.top_p,
+                    **self.kwargs,
+                )
             choice = response.choices[0]
             total_tokens = response.usage.total_tokens
             return [choice.message.content.strip(), total_tokens]
