@@ -78,14 +78,13 @@ def save_metrics_csv(df, output_path):
 
 def plot_model_performance(df, metrics=None, save_path=None):
     """
-    Plot separate bar chart subplots comparing model performance for each selected metric.
+    Plot a grouped barplot comparing model performance for each selected metric, annotating each bar with its rank.
 
     Args:
         df (pd.DataFrame): DataFrame containing model metrics.
         metrics (list of str, optional): Metrics to plot. Defaults to common accuracy metrics.
         save_path (str, optional): If provided, saves the plot to this path.
     """
-    import math
 
     # Define default metrics if not provided
     if metrics is None:
@@ -99,47 +98,28 @@ def plot_model_performance(df, metrics=None, save_path=None):
             ]
             if m in df.columns
         ]
-    n_metrics = len(metrics)
-    n_cols = 2
-    n_rows = math.ceil(n_metrics / n_cols)
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows))
-    axes = axes.flatten() if n_metrics > 1 else [axes]
 
-    for idx, metric in enumerate(metrics):
-        ax = axes[idx]
-        ax.bar(df["model"], df[metric], color="skyblue")
-        ax.set_title(metric.replace("_", " ").title())
-        ax.set_ylabel("Score")
-        ax.set_xlabel("Model")
-        ax.set_ylim(0, 1)
-        for tick in ax.get_xticklabels():
-            tick.set_rotation(15)
-        for i, v in enumerate(df[metric]):
-            ax.text(i, v + 0.01, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
-
-    # Hide any unused subplots
-    for j in range(idx + 1, len(axes)):
-        fig.delaxes(axes[j])
-
-    fig.tight_layout()
-    if save_path:
-        plt.savefig(save_path, bbox_inches="tight")
-        print(f"Saved model performance plots to {save_path}")
-    else:
-        plt.show()
-
+    # Prepare data for seaborn
     df_melt = df.melt(
         id_vars=["model"], value_vars=metrics, var_name="metric", value_name="score"
     )
-    plt.figure(figsize=(10, 6))
-    sns.barplot(data=df_melt, x="metric", y="score", hue="model")
+    # df_melt = df_melt.sort_values(by=['metric', 'score'], ascending=False).reset_index(drop=True)
+    # df_melt["rank"] = df_melt.groupby("metric")['score'].rank('first', ascending=False)
+    plt.figure(figsize=(14, 8))
+    ax = sns.barplot(data=df_melt, x="metric", y="score", hue="model")
     plt.title("Definition Understanding Model Performance")
     plt.ylabel("Score")
     plt.xlabel("Metric")
-    plt.legend(title="Model")
-    plt.tight_layout()
+    plt.legend(title="Model", bbox_to_anchor=(1.02, 0.5), loc="center left", borderaxespad=0)
+
+    # Annotate grouped bars with rank (after the plot is drawn)
+    for bar in ax.patches:
+        if bar.get_height() > 0:
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() - 0.02, f"{round(float(bar.get_height()),3)}",
+                    ha='center', va='bottom', fontsize=8, color='black', rotation=0)
+
     if save_path:
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches="tight")
         print(f"Saved plot to {save_path}")
     plt.show()
 
