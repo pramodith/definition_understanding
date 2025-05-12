@@ -339,6 +339,11 @@ def main():
             judgellm_model_name="gpt-4.1-2025-04-14",
             is_local=False,
         ),
+        EvaluationModels(
+            model_name="gemini-2.0-flash",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
     ]
 
     for model in model_list:

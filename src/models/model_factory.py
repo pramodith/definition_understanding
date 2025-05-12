@@ -48,6 +48,8 @@ def get_model(
             litellm_model_name = f"openai/{model_name}"
         elif model_name.startswith("claude"):
             litellm_model_name = f"anthropic/{model_name}"
+        elif model_name.startswith("gemini"):
+            litellm_model_name = f"gemini/{model_name}"
         # Together AI models for open-source models
         elif any(
             name in model_name.lower() for name in ["meta-llama", "mistral", "qwen"]
