@@ -245,21 +245,21 @@ def main():
         type=str,
         required=False,
         help="Name of the model to evaluate",
-        default="meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        default="Qwen/Qwen3-8B",
     )
     parser.add_argument(
         "--is_local",
         type=bool,
         required=False,
         help="A flag to indicate if a local inference engine is used",
-        default=False,
+        default=True,
     )
     parser.add_argument(
         "--judgellm_model_name",
         type=str,
         required=False,
         help="Name of the Judgellm model to evaluate",
-        default="gpt-4o-mini",
+        default="gpt-4.1-2025-04-14",
     )
     parser.add_argument(
         "--dataset",
