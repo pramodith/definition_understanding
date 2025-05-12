@@ -68,7 +68,7 @@ class VLLMModel(LLMModel):
         Returns a list of lists (top-k per prompt, but here just one per prompt).
         """
         sampling_params = SamplingParams(
-            temperature=0.0, max_tokens=self.max_tokens, top_p=0.01
+            temperature=0.0, max_tokens=self.max_tokens, top_p=0.001
         )
         # Convert each message list to a prompt string
         prompts = [self._convert_messages_to_prompt(msgs) for msgs in prompts_messages]

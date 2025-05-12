@@ -103,8 +103,6 @@ def plot_model_performance(df, metrics=None, save_path=None):
     df_melt = df.melt(
         id_vars=["model"], value_vars=metrics, var_name="metric", value_name="score"
     )
-    # df_melt = df_melt.sort_values(by=['metric', 'score'], ascending=False).reset_index(drop=True)
-    # df_melt["rank"] = df_melt.groupby("metric")['score'].rank('first', ascending=False)
     plt.figure(figsize=(14, 8))
     ax = sns.barplot(data=df_melt, x="metric", y="score", hue="model")
     plt.title("Definition Understanding Model Performance")
