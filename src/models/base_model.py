@@ -46,9 +46,11 @@ class LLMModel:
         # Store generation parameters
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.logprobs = logprobs
-        self.top_logprobs = top_logprobs
         self.kwargs = kwargs
+
+        if logprobs:
+            self.kwargs["logprobs"] = logprobs
+            self.kwargs["top_logprobs"] = top_logprobs
         # The lower this value the more likely we get greedy sampling
         self.top_p = 0.001
         self.max_requests_per_minute = None
@@ -110,8 +112,6 @@ class LLMModel:
                 messages=prompt_messages,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                logprobs=self.logprobs,
-                top_logprobs=self.top_logprobs,
                 top_p=self.top_p,
                 **self.kwargs,
             )
@@ -139,8 +139,7 @@ class LLMModel:
             List of top-k predicted tokens/words (best guess first)
         """
         try:
-            if "gemini" in self.model_name:
-                response = await acompletion(
+            response = await acompletion(
                 model=self.model_name,
                 messages=prompt_messages,
                 temperature=self.temperature,
@@ -148,17 +147,6 @@ class LLMModel:
                 top_p=self.top_p,
                 **self.kwargs,
             )
-            else:
-                response = await acompletion(
-                    model=self.model_name,
-                    messages=prompt_messages,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    logprobs=self.logprobs,
-                    top_logprobs=self.top_logprobs,
-                    top_p=self.top_p,
-                    **self.kwargs,
-                )
             choice = response.choices[0]
             total_tokens = response.usage.total_tokens
             return [choice.message.content.strip(), total_tokens]

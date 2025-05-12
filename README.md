@@ -66,9 +66,30 @@ uv sync
    python src/data_processing/collect_dictionary.py
    ```
 
-3. Evaluate an LLM:
+3. Evaluate an LLM (all available arguments):
    ```bash
-   python src/evaluation/evaluate_model.py --model [MODEL_NAME]
+   python src/evaluation/evaluate_model.py \
+       --model [MODEL_NAME] \
+       --judgellm_model_name [JUDGE_MODEL_NAME] \
+       --dataset [DATASET_PATH] \
+       --output-dir [OUTPUT_DIRECTORY] \
+       --num-samples [NUM_SAMPLES] \
+       --verbose \
+       --is_local [True|False]
+   ```
+
+   **Argument descriptions:**
+   - `--model`: Name of the model to evaluate (e.g., `meta-llama/Llama-3.2-3B-Instruct-Turbo`)
+   - `--judgellm_model_name`: Name of the JudgeLLM model (default: `gpt-4o-mini`)
+   - `--dataset`: Path to the dataset (default: `data/processed_dictionary.csv`)
+   - `--output-dir`: Directory to save evaluation results (default: `results`)
+   - `--num-samples`: Number of samples to evaluate (default: all)
+   - `--verbose`: Print detailed information (flag)
+   - `--is_local`: Use a local inference engine (default: False)
+
+4. Run all benchmarks (evaluate all models in the benchmark list):
+   ```bash
+   python run_benchmarks.py
    ```
 
 ## License

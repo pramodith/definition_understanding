@@ -71,7 +71,6 @@ async def evaluate_model_async(
     output_dir: str,
     num_samples: int | None = None,
     verbose: bool = False,
-    top_logprobs: int | None = None,
     is_local: bool = True,
 ) -> dict[str, float]:
     """
@@ -83,10 +82,7 @@ async def evaluate_model_async(
         dataset_path: Path to the dataset of word definitions
         output_dir: Directory to save evaluation results
         num_samples: Number of samples to evaluate (None for all)
-        include_synonyms: Whether to consider synonyms as correct answers
-        fuzzy_match: Whether to allow fuzzy matching
         verbose: Whether to print detailed information
-        top_logprobs: Number of top log-probabilities to return
         is_local: Whether to use a local inference engine
 
     Returns:
@@ -100,9 +96,7 @@ async def evaluate_model_async(
         df = df.sample(num_samples, random_state=42)
 
     # Get model
-    model = get_model(
-        model_name, logprobs=True, top_logprobs=top_logprobs, is_local=is_local
-    )
+    model = get_model(model_name, is_local=is_local)
     judgellm_model = get_model(judgellm_model_name, is_local=False)
 
     print(
@@ -210,7 +204,6 @@ def evaluate_model(
     output_dir: str,
     num_samples: int | None = None,
     verbose: bool = False,
-    top_logprobs: int | None = None,
     is_local: bool = True,
 ) -> dict[str, float]:
     """
@@ -224,7 +217,6 @@ def evaluate_model(
         output_dir: Directory to save evaluation results
         num_samples: Number of samples to evaluate (None for all)
         verbose: Whether to print detailed information
-        top_logprobs: Number of top log-probabilities to return
         is_local: Whether to use a local inference engine
 
     Returns:
@@ -238,7 +230,6 @@ def evaluate_model(
             output_dir=output_dir,
             num_samples=num_samples,
             verbose=verbose,
-            top_logprobs=top_logprobs,
             is_local=is_local,
         )
     )
@@ -294,69 +285,19 @@ def main():
     parser.add_argument(
         "--verbose", action="store_true", help="Print detailed information"
     )
-    parser.add_argument(
-        "--top-logprobs",
-        type=int,
-        default=5,
-        help="Number of top log-probabilities to return",
-    )
 
     args = parser.parse_args()
 
-    model_list = [
-        # EvaluationModels(
-        #     model_name="Qwen/Qwen2.5-1.5B-Instruct",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=True,
-        # ),
-        # EvaluationModels(
-        #     model_name="meta-llama/Llama-3.2-3B-Instruct-Turbo",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=True,
-        # ),
-        # EvaluationModels(
-        #     model_name="Qwen/Qwen3-8B",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=True,
-        # ),
-        # EvaluationModels(
-        #     model_name="gpt-4.1-nano",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
-        # EvaluationModels(
-        #     model_name="gpt-4.1-mini",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
-        # EvaluationModels(
-        #     model_name="gpt-4.1",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
-        # EvaluationModels(
-        #     model_name="claude-3-7-sonnet-20250219",
-        #     judgellm_model_name="gpt-4.1-2025-04-14",
-        #     is_local=False,
-        # ),
-        EvaluationModels(
-            model_name="gemini-2.0-flash",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-    ]
 
-    for model in model_list:
-        evaluate_model(
-            model_name=model.model_name,
-            judgellm_model_name=model.judgellm_model_name,
-            dataset_path=args.dataset,
-            output_dir=args.output_dir,
-            num_samples=args.num_samples,
-            verbose=args.verbose,
-            top_logprobs=args.top_logprobs,
-            is_local=model.is_local,
-        )
+    evaluate_model(
+        model_name=args.model,
+        judgellm_model_name=args.judgellm_model_name,
+        dataset_path=args.dataset,
+        output_dir=args.output_dir,
+        num_samples=args.num_samples,
+        verbose=args.verbose,
+        is_local=args.is_local,
+    )
 
 
 if __name__ == "__main__":
