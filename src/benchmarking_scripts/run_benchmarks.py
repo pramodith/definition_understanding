@@ -6,13 +6,13 @@ from evaluation.evaluate_model import evaluate_model
 from evaluation.utils import EvaluationModels
 
 model_list = [
+    # EvaluationModels(
+    #     model_name="Qwen/Qwen2.5-1.5B-Instruct",
+    #     judgellm_model_name="gpt-4.1-2025-04-14",
+    #     is_local=True,
+    # ),
     EvaluationModels(
-        model_name="Qwen/Qwen2.5-1.5B-Instruct",
-        judgellm_model_name="gpt-4.1-2025-04-14",
-        is_local=True,
-    ),
-    EvaluationModels(
-        model_name="phi-4",
+        model_name="microsoft/phi-4",
         judgellm_model_name="gpt-4.1-2025-04-14",
         is_local=True,
     ),
