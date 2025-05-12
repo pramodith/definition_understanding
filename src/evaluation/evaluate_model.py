@@ -39,19 +39,22 @@ def create_prompt(definition: str, part_of_speech: str | None = None) -> str:
 
     system_prompt = (
         "You are a word prediction model."
-        "You will be given a definition and the part of speech of the word (if available)."
-        "You must predict the word being defined."
+        "You will be given a definition and the part of speech of a medical word/term (if available)."
+        "You must predict the medical word/term being defined."
     )
 
     pos_info = f" {part_of_speech}" if part_of_speech else "NA"
 
     instructions = (
-        "Respond with just the word and no additional text."
+        "Respond with just the word and no additional text.\n"
         "# Examples:\n"
-        "Definition: A custom-made or tailored item.\nPart of speech: adjective\n"
-        "Answer: Bespoke\n"
-        "Definition: To rage in excess of.\nPart of speech: verb\n"
-        "Answer: Outrage\n"
+        "Definition: A partial or complete break in the continuity of any bone in the body."\
+            "\nPart of speech: noun\n"
+        "Answer: Fracture\n"
+        "Definition: A Y-shaped protein produced by the body's immune system to identify and neutralize"\
+            " foreign substances, called antigens, like bacteria and viruses."\
+        "\nPart of speech: noun\n"
+        "Answer: Antibody\n"
     )
 
     system_prompt = system_prompt + "\n\n" + instructions
@@ -245,7 +248,7 @@ def main():
         type=str,
         required=False,
         help="Name of the model to evaluate",
-        default="Qwen/Qwen3-8B",
+        default="phi-4",
     )
     parser.add_argument(
         "--is_local",

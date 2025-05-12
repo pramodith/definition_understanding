@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from models.base_model import LLMModel
 
 
 @dataclass

@@ -88,19 +88,19 @@ async def ajudge_llm_equivalence(
     Returns:
         List of bools indicating equivalence for each pair.
     """
-    examples = """## Examples
-    Definition: Bleeding from the nose, usually due to ruptured blood vessels in the nasal mucosa.
-    Are the words 'Epistaxis' and 'Nosebleed' the same or synonymous? Yes
-    Definition: The largest part of the brain, responsible for higher brain functions like thought, action, and sensory processing.
-    Are the words 'Cerebrum' and 'Forebrain' the same or synonymous? Yes
-    Definition: An elevated body temperature, often due to infection or illness.
-    Are the words 'Fever' and 'diarrhea' the same or synonymous? No
-    Definition: a single-stranded RNA molecule that carries genetic information"
-        "and from the DNA in the cell's nucleus to the cytoplasm, where proteins are synthesized"
-    Are the words 'mRNA' and 'Messenger RNA' the same or synonymous? Yes
-    Definition: beat or sound with a strong, regular rhythm; pulsate steadily.
-    Are the words 'throb' and 'throbbing' the same or synonymous? Yes
-    """
+    examples = "## Examples\n"\
+    "Definition: Bleeding from the nose, usually due to ruptured blood vessels in the nasal mucosa."\
+    "\nAre the words 'Epistaxis' and 'Nosebleed' the same or synonymous? Yes"\
+    "\nDefinition: The largest part of the brain, responsible for higher brain functions like thought, action, and sensory processing."\
+    "\nAre the words 'Cerebrum' and 'Forebrain' the same or synonymous? Yes"\
+    "\nDefinition: An elevated body temperature, often due to infection or illness."\
+    "\nAre the words 'Fever' and 'diarrhea' the same or synonymous? No"\
+    "\nDefinition: a single-stranded RNA molecule that carries genetic information"\
+    "\nand from the DNA in the cell's nucleus to the cytoplasm, where proteins are synthesized"\
+   "\nAre the words 'mRNA' and 'Messenger RNA' the same or synonymous? Yes"\
+    "\nDefinition: beat or sound with a strong, regular rhythm; pulsate steadily."\
+    "\nAre the words 'throb' and 'throbbing' the same or synonymous? Yes"
+    
     prompts = []
     for pair in pairs:
         prompt = [
@@ -112,8 +112,8 @@ async def ajudge_llm_equivalence(
             },
             {
                 "role": "user",
-                "content": f"Definition: {pair['definition']}"
-                f" Are the words '{pair['prediction']}' and '{pair['target']}' the same or synonymous?",
+                "content": f"\nDefinition: {pair['definition']}"
+                f"\nAre the words '{pair['prediction']}' and '{pair['target']}' the same or synonymous?",
             },
         ]
         prompts.append(prompt)

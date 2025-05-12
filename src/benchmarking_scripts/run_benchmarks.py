@@ -2,8 +2,8 @@
 Script to run benchmarks for all models specified in model_list in evaluate_model.py.
 """
 
-from src.evaluation.evaluate_model import evaluate_model
-from src.evaluation.utils import EvaluationModels
+from evaluation.evaluate_model import evaluate_model
+from evaluation.utils import EvaluationModels
 
 model_list = [
     EvaluationModels(
@@ -12,7 +12,7 @@ model_list = [
         is_local=True,
     ),
     EvaluationModels(
-        model_name="meta-llama/Llama-3.2-3B-Instruct-Turbo",
+        model_name="phi-4",
         judgellm_model_name="gpt-4.1-2025-04-14",
         is_local=True,
     ),
@@ -21,31 +21,31 @@ model_list = [
         judgellm_model_name="gpt-4.1-2025-04-14",
         is_local=True,
     ),
-    EvaluationModels(
-            model_name="gpt-4.1-nano",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="gpt-4.1-mini",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="gpt-4.1",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="claude-3-7-sonnet-20250219",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
-        EvaluationModels(
-            model_name="gemini-2.0-flash",
-            judgellm_model_name="gpt-4.1-2025-04-14",
-            is_local=False,
-        ),
+    # EvaluationModels(
+    #         model_name="gpt-4.1-nano",
+    #         judgellm_model_name="gpt-4.1-2025-04-14",
+    #         is_local=False,
+    #     ),
+    # EvaluationModels(
+    #     model_name="gpt-4.1-mini",
+    #     judgellm_model_name="gpt-4.1-2025-04-14",
+    #     is_local=False,
+    # ),
+    # EvaluationModels(
+    #     model_name="gpt-4.1",
+    #     judgellm_model_name="gpt-4.1-2025-04-14",
+    #     is_local=False,
+    # ),
+    # EvaluationModels(
+    #     model_name="claude-3-7-sonnet-20250219",
+    #     judgellm_model_name="gpt-4.1-2025-04-14",
+    #     is_local=False,
+    # ),
+    # EvaluationModels(
+    #     model_name="gemini-2.0-flash",
+    #     judgellm_model_name="gpt-4.1-2025-04-14",
+    #     is_local=False,
+    # ),
 ]
 
 # Default args (can be customized)
@@ -66,7 +66,6 @@ def run_all_benchmarks():
             output_dir=default_args["output_dir"],
             num_samples=default_args["num_samples"],
             verbose=default_args["verbose"],
-            top_logprobs=default_args["top_logprobs"],
             is_local=model.is_local,
         )
 
