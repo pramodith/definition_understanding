@@ -11,41 +11,41 @@ model_list = [
     #     judgellm_model_name="gpt-4.1-2025-04-14",
     #     is_local=True,
     # ),
+    # EvaluationModels(
+    #     model_name="microsoft/phi-4",
+    #     judgellm_model_name="gpt-4.1-2025-04-14",
+    #     is_local=True,
+    # ),
+    # EvaluationModels(
+    #     model_name="Qwen/Qwen3-8B",
+    #     judgellm_model_name="gpt-4.1-2025-04-14",
+    #     is_local=True,
+    # ),
     EvaluationModels(
-        model_name="microsoft/phi-4",
+            model_name="gpt-4.1-nano",
+            judgellm_model_name="gpt-4.1-2025-04-14",
+            is_local=False,
+        ),
+    EvaluationModels(
+        model_name="gpt-4.1-mini",
         judgellm_model_name="gpt-4.1-2025-04-14",
-        is_local=True,
+        is_local=False,
     ),
     EvaluationModels(
-        model_name="Qwen/Qwen3-8B",
+        model_name="gpt-4.1",
         judgellm_model_name="gpt-4.1-2025-04-14",
-        is_local=True,
+        is_local=False,
     ),
-    # EvaluationModels(
-    #         model_name="gpt-4.1-nano",
-    #         judgellm_model_name="gpt-4.1-2025-04-14",
-    #         is_local=False,
-    #     ),
-    # EvaluationModels(
-    #     model_name="gpt-4.1-mini",
-    #     judgellm_model_name="gpt-4.1-2025-04-14",
-    #     is_local=False,
-    # ),
-    # EvaluationModels(
-    #     model_name="gpt-4.1",
-    #     judgellm_model_name="gpt-4.1-2025-04-14",
-    #     is_local=False,
-    # ),
-    # EvaluationModels(
-    #     model_name="claude-3-7-sonnet-20250219",
-    #     judgellm_model_name="gpt-4.1-2025-04-14",
-    #     is_local=False,
-    # ),
-    # EvaluationModels(
-    #     model_name="gemini-2.0-flash",
-    #     judgellm_model_name="gpt-4.1-2025-04-14",
-    #     is_local=False,
-    # ),
+    EvaluationModels(
+        model_name="claude-3-7-sonnet-20250219",
+        judgellm_model_name="gpt-4.1-2025-04-14",
+        is_local=False,
+    ),
+    EvaluationModels(
+        model_name="gemini-2.0-flash",
+        judgellm_model_name="gpt-4.1-2025-04-14",
+        is_local=False,
+    ),
 ]
 
 # Default args (can be customized)
