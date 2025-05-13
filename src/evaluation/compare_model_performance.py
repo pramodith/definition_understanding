@@ -103,7 +103,7 @@ def plot_model_performance(df, metrics=None, save_path=None):
     df_melt = df.melt(
         id_vars=["model"], value_vars=metrics, var_name="metric", value_name="score"
     )
-    plt.figure(figsize=(14, 8))
+    plt.figure(figsize=(18, 14))
     ax = sns.barplot(data=df_melt, x="metric", y="score", hue="model")
     plt.title("Definition Understanding Model Performance")
     plt.ylabel("Score")
@@ -114,7 +114,7 @@ def plot_model_performance(df, metrics=None, save_path=None):
     for bar in ax.patches:
         if bar.get_height() > 0:
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() - 0.02, f"{round(float(bar.get_height()),3)}",
-                    ha='center', va='bottom', fontsize=8, color='black', rotation=0)
+                    ha='center', va='bottom', fontsize=9, color='black', rotation=0)
 
     if save_path:
         plt.savefig(save_path, bbox_inches="tight")

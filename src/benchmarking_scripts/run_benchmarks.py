@@ -6,21 +6,21 @@ from evaluation.evaluate_model import evaluate_model
 from evaluation.utils import EvaluationModels
 
 model_list = [
-    # EvaluationModels(
-    #     model_name="Qwen/Qwen2.5-1.5B-Instruct",
-    #     judgellm_model_name="gpt-4.1-2025-04-14",
-    #     is_local=True,
-    # ),
-    # EvaluationModels(
-    #     model_name="microsoft/phi-4",
-    #     judgellm_model_name="gpt-4.1-2025-04-14",
-    #     is_local=True,
-    # ),
-    # EvaluationModels(
-    #     model_name="Qwen/Qwen3-8B",
-    #     judgellm_model_name="gpt-4.1-2025-04-14",
-    #     is_local=True,
-    # ),
+    EvaluationModels(
+        model_name="Qwen/Qwen2.5-1.5B-Instruct",
+        judgellm_model_name="gpt-4.1-2025-04-14",
+        is_local=True,
+    ),
+    EvaluationModels(
+        model_name="microsoft/phi-4",
+        judgellm_model_name="gpt-4.1-2025-04-14",
+        is_local=True,
+    ),
+    EvaluationModels(
+        model_name="Qwen/Qwen3-8B",
+        judgellm_model_name="gpt-4.1-2025-04-14",
+        is_local=True,
+    ),
     EvaluationModels(
             model_name="gpt-4.1-nano",
             judgellm_model_name="gpt-4.1-2025-04-14",
@@ -32,7 +32,7 @@ model_list = [
         is_local=False,
     ),
     EvaluationModels(
-        model_name="gpt-4.1",
+        model_name="gpt-4.1-2025-04-14",
         judgellm_model_name="gpt-4.1-2025-04-14",
         is_local=False,
     ),
