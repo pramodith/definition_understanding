@@ -46,9 +46,8 @@ This project tests LLMs' ability to predict words based on their definitions. Th
    - Edit `.env` to fill in your HuggingFace token and any other required variables.
 
 2. Set up the environment:
-```
 Install uv if not already installed:
-pip install uv
+`pip install uv`
 
 Create and activate a virtual environment:
 `uv venv`
@@ -58,8 +57,10 @@ On linux:
 `sudo venv/bin/activate`
 
 Install dependencies:
-uv sync
-```
+`uv sync`
+
+Alternatively you can use pip:
+`pip install -e .`
 
 3. Run the data collection script:
    ```bash
